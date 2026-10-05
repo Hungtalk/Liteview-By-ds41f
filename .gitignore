@@ -1,0 +1,13 @@
+build/
+x64/
+Win32/
+.vs/
+*.user
+*.o
+*.obj
+*.pdb
+tests/dec_main
+tests/dec_dbg
+tests/orient_test
+tests/samples/
+tests/of/

@@ -1,0 +1,48 @@
+// ============================================================================
+//  LiteView.rc : 图标 / 清单 / 版本信息
+//  说明：程序采用静态 CRT + 自备清单，无需系统清单工具生成
+// ============================================================================
+#pragma code_page(65001)
+
+#include "src/resource.h"
+
+IDI_APP ICON "res/app.ico"
+
+// RT_MANIFEST (24) —— 高 DPI / 兼容性声明
+// 注意：MSVC 工程不要在这里再嵌清单（rc 一份 + VS 自动生成一份会重复，
+// 触发 CVT1100 “资源重复(MANIFEST)” + LNK1123）。
+// MSVC：由 .vcxproj 的“清单工具 → 附加清单文件”合并 res\LiteView.manifest；
+// MinGW：构建脚本给 windres 传 -DLITEVIEW_EMBED_RC_MANIFEST 才在 rc 中嵌入。
+#ifdef LITEVIEW_EMBED_RC_MANIFEST
+1 24 "res/LiteView.manifest"
+#endif
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName",      "LiteView"
+            VALUE "FileDescription",  "LiteView 轻量图片查看器"
+            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "InternalName",     "LiteView"
+            VALUE "LegalCopyright",   "MIT License"
+            VALUE "OriginalFilename", "LiteView.exe"
+            VALUE "ProductName",      "LiteView"
+            VALUE "ProductVersion",   "1.0.0.0"
+            VALUE "Comments",         "自研解码 (BMP/PNG/JPEG/GIF)，不依赖系统图片组件"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END

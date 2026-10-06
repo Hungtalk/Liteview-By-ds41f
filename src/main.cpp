@@ -2,6 +2,7 @@
 //  main.cpp : 程序入口（DPI、命令行、单实例“自备协议”、拖放）
 // ============================================================================
 #include "viewer.h"
+#include "i18n.h"
 #include "assoc.h"
 
 #include <shellapi.h>
@@ -123,6 +124,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow) {
     std::vector<std::wstring> paths;
     bool wantFull = false, doReg = false, doUnreg = false;
     int slideSec = 0;
+    std::wstring langOverride;               // --lang=xx 指定语言（空 = 自动）
     {
         int argc = 0;
         LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -132,12 +134,20 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow) {
                 if (a == L"--register") doReg = true;
                 else if (a == L"--unregister") doUnreg = true;
                 else if (a == L"--fullscreen") wantFull = true;
+                else if (a.compare(0, 7, L"--lang=") == 0) langOverride = a.substr(7);
                 else if (a == L"--slide" && i + 1 < argc) slideSec = _wtoi(argv[++i]);
                 else if (!a.empty() && a[0] == L'-') continue;
                 else paths.push_back(make_absolute(a));
             }
             LocalFree(argv);
         }
+    }
+
+    // 语言：--lang= 优先，其次设置（默认 auto = 跟随系统语言）
+    {
+        Settings boot;
+        boot.load();
+        i18n_init(langOverride.empty() ? boot.language : langOverride);
     }
 
     if (doReg || doUnreg) {
@@ -150,9 +160,8 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow) {
             ok = assoc::unregister_assoc(err);
             assoc::notify_shell();
         }
-        const wchar_t* msgOk = doReg ? L"已注册文件关联。\n\n提示：Windows 10/11 中如需设为“默认应用”，请在\n「打开方式 → 选择其他应用 → LiteView → 始终使用」中确认。"
-                                     : L"已取消文件关联。";
-        MessageBoxW(nullptr, ok ? msgOk : (err.empty() ? L"操作失败" : err.c_str()),
+        const wchar_t* msgOk = doReg ? tr(Sid::cli_assoc_registered) : tr(Sid::cli_assoc_removed);
+        MessageBoxW(nullptr, ok ? msgOk : (err.empty() ? tr(Sid::cli_operation_failed) : err.c_str()),
                     L"LiteView", MB_OK | (ok ? MB_ICONINFORMATION : MB_ICONWARNING));
         return ok ? 0 : 1;
     }
@@ -204,7 +213,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow) {
     int sh = GetSystemMetrics(SM_CYSCREEN);
     int w0 = std::min(sw * 4 / 5, 1360);
     int h0 = std::min(sh * 4 / 5, 860);
-    HWND hwnd = CreateWindowExW(0, kClassName, L"LiteView 图片查看器",
+    HWND hwnd = CreateWindowExW(0, kClassName, tr(Sid::app_title),
                                 WS_OVERLAPPEDWINDOW,
                                 (sw - w0) / 2, (sh - h0) / 2, w0, h0,
                                 nullptr, nullptr, hInst, v);

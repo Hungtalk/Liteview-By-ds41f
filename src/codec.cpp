@@ -3,6 +3,7 @@
 // ============================================================================
 #include "codec.h"
 #include "util.h"
+#include "i18n.h"
 
 void apply_exif_orientation(Image& img, int orientation) {
     image_apply_exif_orientation(img, orientation);
@@ -11,7 +12,7 @@ void apply_exif_orientation(Image& img, int orientation) {
 bool decode_image(const std::vector<u8>& d, Image& img, ImageMeta& meta, std::wstring& err) {
     meta = ImageMeta();
     img.release();
-    if (d.size() < 16) { err = L"文件太小，不是有效图片"; return false; }
+    if (d.size() < 16) { err = tr(Sid::err_file_too_small); return false; }
 
     const u8* p = d.data();
     const size_t n = d.size();
@@ -32,7 +33,7 @@ bool decode_image(const std::vector<u8>& d, Image& img, ImageMeta& meta, std::ws
         meta.formatName = L"GIF";
         return gif_decode(p, n, img, &meta.frames, err);
     }
-    err = L"不支持的图片格式（支持 BMP / PNG / JPEG / GIF）";
+    err = tr(Sid::err_unsupported_format);
     return false;
 }
 

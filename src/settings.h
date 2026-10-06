@@ -24,6 +24,7 @@ struct Settings {
     int startMaximized = 1;
     int topmost = 0;
     int loopFiles = 1;          // 浏览到末尾后循环
+    std::wstring language = L"auto";   // auto=跟随系统 或语言包代码（如 zh-CN）
 
     // ---- 存取 ----
     void load();

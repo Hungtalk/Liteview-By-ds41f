@@ -9,7 +9,7 @@ python3 gen_images.py > /dev/null
 
 echo "== 2. 构建解码测试程序 =="
 g++ -std=c++17 -O2 -I"$SRC" \
-  "$SRC/util.cpp" "$SRC/image.cpp" "$SRC/inflate.cpp" "$SRC/codec.cpp" \
+  "$SRC/util.cpp" "$SRC/i18n.cpp" "$SRC/image.cpp" "$SRC/inflate.cpp" "$SRC/codec.cpp" \
   "$SRC/codec_bmp.cpp" "$SRC/codec_png.cpp" "$SRC/codec_gif.cpp" "$SRC/codec_jpeg.cpp" \
   dec_main.cpp -o dec_main
 
@@ -28,12 +28,17 @@ python3 make_exif_jpeg.py
 
 echo "== 6. 8 种 EXIF 方向变换对照 =="
 g++ -std=c++17 -O2 -I"$SRC" \
-  "$SRC/util.cpp" "$SRC/image.cpp" "$SRC/inflate.cpp" "$SRC/codec.cpp" \
+  "$SRC/util.cpp" "$SRC/i18n.cpp" "$SRC/image.cpp" "$SRC/inflate.cpp" "$SRC/codec.cpp" \
   "$SRC/codec_bmp.cpp" "$SRC/codec_png.cpp" "$SRC/codec_gif.cpp" "$SRC/codec_jpeg.cpp" \
   orient_test.cpp -o orient_test
 mkdir -p of
 ./orient_test of > /dev/null
 python3 check_orient.py
+
+echo "== 7. 语言包完整性检查（i18n）=="
+g++ -std=c++17 -O2 -I"$SRC" \
+  "$SRC/util.cpp" "$SRC/i18n.cpp" i18n_tool.cpp -o i18n_tool
+./i18n_tool check ../lang/zh-CN.csv --require-all
 
 echo
 echo "==== 全部测试通过 ===="

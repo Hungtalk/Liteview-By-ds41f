@@ -86,6 +86,8 @@ build_mingw.bat
 ./build_mingw.sh
 ```
 
+> 三条构建路径都会把 `lang\*.csv` 复制到 `LiteView.exe` 旁（MSVC 为生成后事件；MinGW 脚本含复制步骤），语言包开箱即用。
+
 ---
 
 ## 四、文件关联（设置面板 → 文件关联）
@@ -105,7 +107,17 @@ build_mingw.bat
 
 ---
 
-## 六、目录结构
+## 六、多语言（语言包）
+
+- 界面默认显示**内置英文**；启动时按**系统界面语言**自动选择语言包。
+- 翻译文本放在 `LiteView.exe` 同目录的 `lang\` 文件夹（或 `%LOCALAPPDATA%\LiteView\lang`）的独立 CSV 语言包中（如 `zh-CN` → `lang\zh-CN.csv`）；没有匹配的语言包时回退内置英文。
+- 已内置：[`lang/zh-CN.csv`](lang/zh-CN.csv)（简体中文）；[`lang/template.csv`](lang/template.csv) 为新语言的起步模板，三列格式（`key,english,translation`）见 [`lang/README.md`](lang/README.md)。
+- 手动切换：**设置面板 → 语言**（在“自动（跟随系统）/ 各语言包 / 英文”间循环），或启动参数 `LiteView.exe --lang=zh-CN`；选择保存在 `LiteView.ini` 的 `[general] language`。
+- 翻译时请保留 `%d`、`%s`、`%%` 等占位符；`\n` = 换行、`\t` = 制表符、`\\` = 反斜杠；留空 = 使用英文。
+
+---
+
+## 七、目录结构
 
 ```
 LiteView/
@@ -115,6 +127,7 @@ LiteView/
 ├─ res/  app.ico, LiteView.manifest
 ├─ src/
 │   ├─ common.h  image.*  util.*        基础类型 / 图像缓冲 / 路径与 INI
+│   ├─ i18n.*                          多语言（内置英文 + lang\*.csv 语言包）
 │   ├─ inflate.*                       自研 DEFLATE + zlib
 │   ├─ codec.h  codec.cpp               格式分发
 │   ├─ codec_bmp.cpp / png / jpeg / gif 自研解码器
@@ -125,11 +138,13 @@ LiteView/
 │   ├─ toolbar.cpp                      自绘工具栏 + 矢量图标
 │   ├─ panels.cpp                       文件面板 + 设置面板
 │   └─ main.cpp                         入口 / 单实例 / 拖放 / 命令行
+├─ lang/  zh-CN.csv, template.csv, README.md
+│                                      语言包（CSV）+ 翻译说明
 ├─ tools/make_icon.py                   图标生成脚本（Pillow）
-└─ tests/                               解码器对照测试（PIL + djpeg）
+└─ tests/                               解码器测试（PIL + djpeg）+ 语言包校验工具
 ```
 
-## 七、解码器说明与限制
+## 八、解码器说明与限制
 
 - **PNG**：1/2/4/8/16 位深、灰度/真彩/调色板/灰度+Alpha/RGBA、tRNS 透明、Adam7 隔行、CRC 校验。
 - **JPEG**：基线 + 渐进式，灰度/YCbCr（4:4:4 / 4:2:2 / 4:2:0 / 4:1:1），restart 标记，EXIF（方向/相机/曝光等）；已用 `djpeg -nosmooth` 同口径逐像素校验，最大差 ≤3。
@@ -138,7 +153,7 @@ LiteView/
 - 不支持：CMYK/YCCK JPEG、12 位 JPEG、WebP/TIFF/RAW（会给出明确的错误提示，不崩溃）。
 - 图片上限约 6400 万像素；超大文件（>2GB）拒绝加载。
 
-## 八、测试（可选）
+## 九、测试（可选）
 
 `tests/` 内含解码器对照测试（本机为 Linux/Python 环境）：
 ```bash
@@ -149,7 +164,7 @@ LiteView/
 - `compare_djpeg.py` 用 `djpeg -nosmooth` 做同口径严格校验（JPEG）；
 - `make_exif_jpeg.py` / `orient_test` 校验 EXIF 解析与 8 种方向变换。
 
-## 九、FAQ
+## 十、FAQ
 
 - **生成时报错 CVT1100 “资源重复。类型: MANIFEST” + LNK1123 怎么办？**
   说明工程里同时存在两份清单被嵌入：`rc` 里 `1 24 ...` 一份、VS 自动生成的又一份。
@@ -160,7 +175,8 @@ LiteView/
 - **关联后资源管理器图标没变？** 注销一次或重启资源管理器；`--unregister` 后重新注册。
 - **为什么界面不含系统对话框？** 为了在“照片/通用对话框被移除”的系统上依旧可用，文件选择、设置、信息均为自绘面板。
 - **GIF 不动？** 本查看器定位是轻量查看，动画只显示首帧；状态栏会显示总帧数。
+- **想加别的语言？** 复制 `lang\template.csv` 为 `lang\<代码>.csv`（如 `de.csv`），翻译第三列并保留占位符，以 UTF-8 保存；启动即自动识别（设置面板 → 语言 可立即切换）。
 
-## 十、许可证
+## 十一、许可证
 
 MIT，详见 [LICENSE.txt](LICENSE.txt)。

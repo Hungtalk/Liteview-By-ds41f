@@ -3,6 +3,7 @@
 //  支持: 1/4/8/16/24/32 bpp、BI_RGB、BI_RLE8、BI_RLE4、BI_BITFIELDS(含 alpha)
 // ============================================================================
 #include "codec.h"
+#include "i18n.h"
 
 namespace {
 
@@ -26,7 +27,7 @@ u8 scale_channel(u32 v, const MaskInfo& mi) {
 } // namespace
 
 bool bmp_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
-    if (n < 26 || p[0] != 'B' || p[1] != 'M') { err = L"BMP 文件头损坏"; return false; }
+    if (n < 26 || p[0] != 'B' || p[1] != 'M') { err = tr(Sid::err_bmp_header); return false; }
 
     const u32 dataOff = rd32le(p + 10);
     const u32 dibSize = rd32le(p + 14);
@@ -46,7 +47,7 @@ bool bmp_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
         palEntry = 3;
         palCount = (bpp <= 8) ? ((size_t)1 << bpp) : 0;
     } else {
-        if (dibSize < 40 || n < 14 + 40) { err = L"不支持的 BMP 版本"; return false; }
+        if (dibSize < 40 || n < 14 + 40) { err = tr(Sid::err_bmp_version); return false; }
         w = rdi32le(p + 18);
         h = rdi32le(p + 22);
         bpp = (int)rd16le(p + 28);
@@ -55,7 +56,7 @@ bool bmp_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
         if (h < 0) { topDown = true; h = -h; }
         if (comp == 3 || comp == 6) {          // BI_BITFIELDS / BI_ALPHABITFIELDS
             size_t mo = 14 + 40;
-            if (n < mo + 12) { err = L"BMP 掩码缺失"; return false; }
+            if (n < mo + 12) { err = tr(Sid::err_bmp_masks); return false; }
             rM = rd32le(p + mo);
             gM = rd32le(p + mo + 4);
             bM = rd32le(p + mo + 8);
@@ -72,12 +73,12 @@ bool bmp_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
     }
 
     if (w <= 0 || h <= 0 || w > kMaxImageSide || h > kMaxImageSide ||
-        (u64)w * (u64)h > kMaxImagePixels) { err = L"BMP 尺寸无效或过大"; return false; }
+        (u64)w * (u64)h > kMaxImagePixels) { err = tr(Sid::err_bmp_size); return false; }
     if (!(bpp == 1 || bpp == 4 || bpp == 8 || bpp == 16 || bpp == 24 || bpp == 32)) {
-        err = L"BMP 位深不支持"; return false;
+        err = tr(Sid::err_bmp_bpp); return false;
     }
     if (!(comp == 0 || comp == 1 || comp == 2 || comp == 3 || comp == 6)) {
-        err = L"BMP 压缩方式不支持"; return false;
+        err = tr(Sid::err_bmp_compression); return false;
     }
 
     // ---- 调色板 ----
@@ -85,7 +86,7 @@ bool bmp_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
     for (int i = 0; i < 256; i++) pal[i] = 0xFF000000u;
     if (palCount) {
         if (palCount > 256) palCount = 256;
-        if ((u64)palOff + palCount * (size_t)palEntry > n) { err = L"BMP 调色板越界"; return false; }
+        if ((u64)palOff + palCount * (size_t)palEntry > n) { err = tr(Sid::err_bmp_palette); return false; }
         for (size_t i = 0; i < palCount; i++) {
             const u8* q = p + palOff + i * palEntry;
             u8 b = q[0], g = q[1], r = q[2], a = (palEntry == 4) ? q[3] : 255;
@@ -96,8 +97,8 @@ bool bmp_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
 
     // ---- RLE 压缩 ----
     if (comp == 1 || comp == 2) {
-        if (bpp != 8 && bpp != 4) { err = L"BMP RLE 位深错误"; return false; }
-        if (dataOff >= n) { err = L"BMP 像素数据缺失"; return false; }
+        if (bpp != 8 && bpp != 4) { err = tr(Sid::err_bmp_rle_bpp); return false; }
+        if (dataOff >= n) { err = tr(Sid::err_bmp_no_pixels); return false; }
         img.reset(w, h);
         std::vector<u8> idx((size_t)w * h, 0);
         int x = 0, y = topDown ? 0 : h - 1;
@@ -155,7 +156,7 @@ bool bmp_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
 
     // ---- 常规位图 ----
     const size_t stride = (((size_t)w * bpp + 31) / 32) * 4;
-    if ((u64)dataOff + stride * (size_t)h > n) { err = L"BMP 像素数据不完整"; return false; }
+    if ((u64)dataOff + stride * (size_t)h > n) { err = tr(Sid::err_bmp_pixels_incomplete); return false; }
 
     img.reset(w, h);
     const MaskInfo rm = make_mask(rM), gm = make_mask(gM), bm = make_mask(bM), am = make_mask(aM);

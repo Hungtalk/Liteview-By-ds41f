@@ -56,6 +56,7 @@ void Settings::load() {
     startMaximized = clampi(ini.get_int(L"general", L"maximized", startMaximized), 0, 1);
     topmost        = clampi(ini.get_int(L"general", L"topmost", topmost), 0, 1);
     loopFiles      = clampi(ini.get_int(L"general", L"loopFiles", loopFiles), 0, 1);
+    language       = ini.get_str(L"general", L"language", language);
 }
 
 bool Settings::save() const {
@@ -77,6 +78,7 @@ bool Settings::save() const {
     ini.set_int(L"general", L"maximized", startMaximized);
     ini.set_int(L"general", L"topmost", topmost);
     ini.set_int(L"general", L"loopFiles", loopFiles);
+    ini.set_str(L"general", L"language", language);
     const_cast<Settings*>(this)->path = p;
     return ini.save(p);
 }

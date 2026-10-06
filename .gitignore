@@ -9,5 +9,6 @@ Win32/
 tests/dec_main
 tests/dec_dbg
 tests/orient_test
+tests/i18n_tool
 tests/samples/
 tests/of/

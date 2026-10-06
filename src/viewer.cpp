@@ -3,6 +3,7 @@
 // ============================================================================
 #include "viewer.h"
 #include "codec.h"
+#include "i18n.h"
 
 #include <cmath>
 #include <cstdio>
@@ -260,7 +261,7 @@ static bool try_load(Viewer& v, int idx) {
     v.loading = false;
 
     if (!ok) {
-        viewer_show_toast(v, err.empty() ? (L"无法打开: " + v.files[idx]) : err);
+        viewer_show_toast(v, err.empty() ? trf(Sid::toast_cannot_open, v.files[idx].c_str()) : err);
         v.viewDirty = true;
         InvalidateRect(v.hwnd, nullptr, FALSE);
         return false;
@@ -301,7 +302,7 @@ static bool try_load(Viewer& v, int idx) {
 }
 
 void viewer_open_file(Viewer& v, const std::wstring& path, bool keepPanel) {
-    if (!path_exists(path)) { viewer_show_toast(v, L"文件不存在"); return; }
+    if (!path_exists(path)) { viewer_show_toast(v, tr(Sid::toast_no_file)); return; }
     std::wstring dir = dir_of(path);
     if (to_lower(dir) != to_lower(v.filesDir) || v.files.empty())
         load_dir_files(v, dir);
@@ -330,7 +331,7 @@ void viewer_next(Viewer& v, int delta, bool userAction) {
     if (userAction && v.slideshow) viewer_set_slideshow(v, false);
     int n = (int)v.files.size();
     if (n <= 1) {
-        if (userAction) viewer_show_toast(v, L"目录中只有这一张图片");
+        if (userAction) viewer_show_toast(v, tr(Sid::toast_only_one));
         return;
     }
     int i = v.fileIndex;
@@ -338,7 +339,7 @@ void viewer_next(Viewer& v, int delta, bool userAction) {
         i += delta;
         if (i < 0 || i >= n) {
             if (!v.set.loopFiles) {
-                viewer_show_toast(v, delta > 0 ? L"已经是最后一张" : L"已经是第一张");
+                viewer_show_toast(v, delta > 0 ? tr(Sid::toast_last) : tr(Sid::toast_first));
                 return;
             }
             i = (i % n + n) % n;
@@ -454,8 +455,8 @@ static std::wstring trim_w(std::wstring s) {
 
 static std::wstring status_left(Viewer& v) {
     if (!v.hint.empty()) return v.hint;
-    if (v.loading) return L"正在加载…";
-    if (v.doc.base.empty()) return L"未打开图片 — 按 O 选择图片，或将图片拖入窗口";
+    if (v.loading) return tr(Sid::status_loading);
+    if (v.doc.base.empty()) return tr(Sid::status_no_image);
     wchar_t buf[700];
     std::wstring name = file_name_of(v.doc.path);
     int n = (int)v.files.size();
@@ -467,7 +468,7 @@ static std::wstring status_left(Viewer& v) {
              format_file_size(v.doc.fileSize).c_str());
     std::wstring s = buf;
     if (v.doc.meta.frames > 1) {
-        swprintf(buf, 700, L"   %d 帧(GIF)", v.doc.meta.frames);
+        swprintf(buf, 700, tr(Sid::status_frames), v.doc.meta.frames);
         s += buf;
     }
     return s;
@@ -478,7 +479,7 @@ static std::wstring status_right(Viewer& v) {
     wchar_t buf[128];
     swprintf(buf, 128, L"%d%%", viewer_scale_pct(v));
     std::wstring s = buf;
-    if (v.slideshow) s += L"   幻灯片播放中";
+    if (v.slideshow) s += tr(Sid::status_slideshow);
     return s;
 }
 
@@ -519,13 +520,13 @@ static void paint_empty_hint(Viewer& v, HDC dc) {
     SetTextColor(dc, RGB(150, 150, 150));
     RECT r1 = r;
     r1.top = (r.top + r.bottom) / 2 - dpi_px(v, 20);
-    DrawTextW(dc, L"把图片拖到这里，或按 O 打开图片", -1, &r1,
+    DrawTextW(dc, tr(Sid::empty_hint_line1), -1, &r1,
               DT_CENTER | DT_SINGLELINE | DT_NOPREFIX);
     SelectObject(dc, v.fontUI);
     SetTextColor(dc, RGB(110, 110, 110));
     RECT r2 = r;
     r2.top = r1.top + dpi_px(v, 30);
-    DrawTextW(dc, L"支持 JPG / PNG / GIF / BMP — 自研解码，不依赖系统组件", -1, &r2,
+    DrawTextW(dc, tr(Sid::empty_hint_line2), -1, &r2,
               DT_CENTER | DT_SINGLELINE | DT_NOPREFIX);
 }
 
@@ -534,36 +535,36 @@ static std::vector<std::wstring> build_info_lines(Viewer& v) {
     if (v.doc.base.empty()) return L;
     wchar_t buf[1024];
     L.push_back(file_name_of(v.doc.path));
-    L.push_back(L"路径:  " + v.doc.path);
-    swprintf(buf, 1024, L"尺寸:  %d × %d        格式:  %s        文件:  %s",
+    L.push_back(tr(Sid::info_path) + v.doc.path);
+    swprintf(buf, 1024, tr(Sid::info_size),
              v.doc.base.w, v.doc.base.h, v.doc.meta.formatName.c_str(),
              format_file_size(v.doc.fileSize).c_str());
     L.push_back(buf);
     {
         int vw = v.rcView.right - v.rcView.left;
         int vh = v.rcView.bottom - v.rcView.top;
-        swprintf(buf, 1024, L"缩放:  %d%%        视图区域:  %d × %d",
+        swprintf(buf, 1024, tr(Sid::info_zoom),
                  viewer_scale_pct(v), vw, vh);
         L.push_back(buf);
     }
     if (v.doc.meta.frames > 1) {
-        swprintf(buf, 1024, L"GIF 帧数:  %d（显示第一帧）", v.doc.meta.frames);
+        swprintf(buf, 1024, tr(Sid::info_gif_frames), v.doc.meta.frames);
         L.push_back(buf);
     }
     const ExifInfo& ex = v.doc.meta.exif;
     if (ex.valid) {
         if (!ex.make.empty() || !ex.model.empty()) {
-            L.push_back(L"相机:  " + trim_w(ex.make) + L" " + trim_w(ex.model));
+            L.push_back(tr(Sid::info_camera) + trim_w(ex.make) + L" " + trim_w(ex.model));
         }
-        if (!ex.dateTime.empty()) L.push_back(L"拍摄时间:  " + ex.dateTime);
+        if (!ex.dateTime.empty()) L.push_back(tr(Sid::info_date) + ex.dateTime);
         std::wstring exp;
-        if (!ex.exposure.empty()) exp += L"快门 " + ex.exposure + L"    ";
-        if (!ex.fnumber.empty())  exp += L"光圈 " + ex.fnumber + L"    ";
+        if (!ex.exposure.empty()) exp += tr(Sid::info_shutter) + ex.exposure + L"    ";
+        if (!ex.fnumber.empty())  exp += tr(Sid::info_aperture) + ex.fnumber + L"    ";
         if (!ex.iso.empty())      exp += ex.iso + L"    ";
-        if (!ex.focal.empty())    exp += L"焦距 " + ex.focal;
+        if (!ex.focal.empty())    exp += tr(Sid::info_focal) + ex.focal;
         if (!exp.empty()) L.push_back(exp);
         if (ex.orientation >= 2 && ex.orientation <= 8) {
-            swprintf(buf, 1024, L"EXIF 方向:  %d（已自动校正）", ex.orientation);
+            swprintf(buf, 1024, tr(Sid::info_exif_orientation), ex.orientation);
             L.push_back(buf);
         }
     }
@@ -593,7 +594,7 @@ static void paint_info(Viewer& v, HDC dc) {
     SetTextColor(dc, RGB(150, 150, 150));
     RECT r = box;
     r.bottom -= dpi_px(v, 8);
-    DrawTextW(dc, L"按 I 或点击任意处关闭", -1, &r,
+    DrawTextW(dc, tr(Sid::info_close_hint), -1, &r,
               DT_BOTTOM | DT_RIGHT | DT_SINGLELINE | DT_NOPREFIX);
     (void)lines;
 }
@@ -607,7 +608,7 @@ static void paint_loading(Viewer& v, HDC dc) {
     fill_rect32(v.dibBits, v.dibW, clip, box, 0xE0282828);
     SelectObject(dc, v.fontUI);
     SetTextColor(dc, RGB(230, 230, 230));
-    DrawTextW(dc, L"正在加载…", -1, &box, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+    DrawTextW(dc, tr(Sid::status_loading), -1, &box, DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
 }
 
 static void paint_toast(Viewer& v, HDC dc) {

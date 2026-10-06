@@ -4,6 +4,7 @@
 //  说明: 本查看器显示首帧；meta.frames 返回总帧数
 // ============================================================================
 #include "codec.h"
+#include "i18n.h"
 
 namespace {
 
@@ -120,12 +121,12 @@ u32 palette_entry(const u8* tbl, int index) {
 } // namespace
 
 bool gif_decode(const u8* p, size_t n, Image& img, int* frameCount, std::wstring& err) {
-    if (n < 13 || memcmp(p, "GIF8", 4) != 0) { err = L"不是 GIF 文件"; return false; }
+    if (n < 13 || memcmp(p, "GIF8", 4) != 0) { err = tr(Sid::err_gif_not_gif); return false; }
 
     const int W = (int)rd16le(p + 6);
     const int H = (int)rd16le(p + 8);
     if (W <= 0 || H <= 0 || W > kMaxImageSide || H > kMaxImageSide ||
-        (u64)W * H > kMaxImagePixels) { err = L"GIF 尺寸无效或过大"; return false; }
+        (u64)W * H > kMaxImagePixels) { err = tr(Sid::err_gif_size); return false; }
     const u8 lsdPacked = p[10];
     const bool hasGct = (lsdPacked & 0x80) != 0;
     const int gctSize = 2 << (lsdPacked & 7);
@@ -133,7 +134,7 @@ bool gif_decode(const u8* p, size_t n, Image& img, int* frameCount, std::wstring
     size_t pos = 13;
     const u8* gct = nullptr;
     if (hasGct) {
-        if (pos + (size_t)gctSize * 3 > n) { err = L"GIF 调色板越界"; return false; }
+        if (pos + (size_t)gctSize * 3 > n) { err = tr(Sid::err_gif_palette); return false; }
         gct = p + pos;
         pos += (size_t)gctSize * 3;
     }
@@ -173,11 +174,11 @@ bool gif_decode(const u8* p, size_t n, Image& img, int* frameCount, std::wstring
 
         std::vector<u8> indices;
         if (!lzw_decode(data.data(), data.size(), minCode, indices, (size_t)fw * fh)) {
-            err = L"GIF 数据损坏";
+            err = tr(Sid::err_gif_corrupt);
             return false;
         }
         if (indices.size() < (size_t)fw * fh) {
-            err = L"GIF 像素数据不完整";
+            err = tr(Sid::err_gif_pixels_incomplete);
             return false;
         }
 
@@ -221,7 +222,7 @@ bool gif_decode(const u8* p, size_t n, Image& img, int* frameCount, std::wstring
         u8 block = p[pos++];
         if (block == 0x3B) break;                    // Trailer
         if (block == 0x2C) {                          // Image Descriptor
-            if (!decode_image_block()) { err = err.empty() ? L"GIF 图像块损坏" : err; return false; }
+            if (!decode_image_block()) { err = err.empty() ? tr(Sid::err_gif_block) : err; return false; }
             sawImage = true;
         } else if (block == 0x21) {                   // 扩展块
             if (pos >= n) break;
@@ -246,7 +247,7 @@ bool gif_decode(const u8* p, size_t n, Image& img, int* frameCount, std::wstring
         }
     }
 
-    if (!sawImage || !firstFrameDone) { err = L"GIF 数据不完整"; return false; }
+    if (!sawImage || !firstFrameDone) { err = tr(Sid::err_gif_incomplete); return false; }
     if (frameCount) *frameCount = frames > 0 ? frames : 1;
     return true;
 }

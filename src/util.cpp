@@ -2,6 +2,7 @@
 //  util.cpp : 路径 / 文件 / INI 实现
 // ============================================================================
 #include "util.h"
+#include "i18n.h"
 
 #include <cwctype>
 #include <filesystem>
@@ -256,13 +257,13 @@ bool read_file_bytes(const std::wstring& path, std::vector<u8>& out, std::wstrin
     HANDLE h = CreateFileW(path.c_str(), GENERIC_READ,
                            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                            nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h == INVALID_HANDLE_VALUE) { err = L"无法打开文件"; return false; }
+    if (h == INVALID_HANDLE_VALUE) { err = tr(Sid::err_file_open); return false; }
     LARGE_INTEGER sz{};
     if (!GetFileSizeEx(h, &sz) || sz.QuadPart < 0) {
-        CloseHandle(h); err = L"无法获取文件大小"; return false;
+        CloseHandle(h); err = tr(Sid::err_file_size); return false;
     }
     if (sz.QuadPart > 0x7FFFFFFFll) {
-        CloseHandle(h); err = L"文件太大（超过 2GB）"; return false;
+        CloseHandle(h); err = tr(Sid::err_file_too_big); return false;
     }
     out.resize((size_t)sz.QuadPart);
     size_t total = 0;
@@ -270,7 +271,7 @@ bool read_file_bytes(const std::wstring& path, std::vector<u8>& out, std::wstrin
         DWORD got = 0;
         DWORD want = (DWORD)std::min<size_t>(out.size() - total, 1u << 24);
         if (!ReadFile(h, out.data() + total, want, &got, nullptr) || got == 0) {
-            CloseHandle(h); err = L"读取文件失败"; return false;
+            CloseHandle(h); err = tr(Sid::err_file_read); return false;
         }
         total += got;
     }
@@ -297,13 +298,13 @@ bool write_file_bytes(const std::wstring& path, const void* data, size_t size) {
 #else
 bool read_file_bytes(const std::wstring& path, std::vector<u8>& out, std::wstring& err) {
     std::ifstream f(fs::path(path), std::ios::binary);
-    if (!f) { err = L"无法打开文件"; return false; }
+    if (!f) { err = tr(Sid::err_file_open); return false; }
     f.seekg(0, std::ios::end);
     std::streamoff n = f.tellg();
-    if (n < 0) { err = L"无法获取文件大小"; return false; }
+    if (n < 0) { err = tr(Sid::err_file_size); return false; }
     f.seekg(0, std::ios::beg);
     out.resize((size_t)n);
-    if (n > 0 && !f.read((char*)out.data(), n)) { err = L"读取文件失败"; return false; }
+    if (n > 0 && !f.read((char*)out.data(), n)) { err = tr(Sid::err_file_read); return false; }
     return true;
 }
 

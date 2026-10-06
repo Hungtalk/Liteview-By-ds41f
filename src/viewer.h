@@ -9,7 +9,7 @@
 #include "util.h"
 
 #ifndef _WIN32
-#error "LiteView 界面仅支持 Windows"
+#error "The LiteView UI is Windows-only"
 #endif
 
 #ifndef _WIN32_WINNT

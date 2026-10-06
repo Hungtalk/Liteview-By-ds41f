@@ -2,6 +2,7 @@
 //  assoc.cpp : 注册表关联实现（HKCU，免管理员）
 // ============================================================================
 #include "assoc.h"
+#include "i18n.h"
 
 #ifdef _WIN32
 
@@ -14,7 +15,6 @@
 namespace assoc {
 
 static const wchar_t* kProgId = L"LiteView.Image";
-static const wchar_t* kProgFriendly = L"LiteView 图片";
 static const wchar_t* kAppName = L"LiteView";
 
 std::vector<std::wstring> supported_exts() {
@@ -70,7 +70,7 @@ bool is_registered(const std::wstring& exePath) {
 
 bool register_assoc(const std::wstring& exePath, std::wstring& err) {
     std::wstring base = progid_key();
-    if (!reg_set_str(HKEY_CURRENT_USER, base, nullptr, kProgFriendly)) { err = L"写入 ProgID 失败"; return false; }
+    if (!reg_set_str(HKEY_CURRENT_USER, base, nullptr, tr(Sid::assoc_friendly_name))) { err = tr(Sid::err_assoc_progid); return false; }
     reg_set_str(HKEY_CURRENT_USER, base + L"\\DefaultIcon", nullptr, quote(exePath) + L",0");
     reg_set_str(HKEY_CURRENT_USER, base + L"\\shell\\open\\command", nullptr, quote(exePath) + L" \"%1\"");
     reg_set_str(HKEY_CURRENT_USER, base + L"\\shell\\open", L"FriendlyAppName", kAppName);
@@ -103,7 +103,7 @@ bool set_default_assoc(const std::wstring& exePath, std::wstring& err) {
         }
         reg_set_str(HKEY_CURRENT_USER, L"Software\\Classes\\" + ext + L"\\OpenWithList\\LiteView.exe", L"", L"");
         if (!reg_set_str(HKEY_CURRENT_USER, extKey, nullptr, kProgId)) {
-            err = L"设置默认关联失败（可能被系统策略限制）";
+            err = tr(Sid::err_assoc_default);
             return false;
         }
     }
@@ -141,8 +141,8 @@ void notify_shell() {
 namespace assoc {
 std::vector<std::wstring> supported_exts() { return {}; }
 bool is_registered(const std::wstring&) { return false; }
-bool register_assoc(const std::wstring&, std::wstring& err) { err = L"仅 Windows 支持"; return false; }
-bool set_default_assoc(const std::wstring&, std::wstring& err) { err = L"仅 Windows 支持"; return false; }
+bool register_assoc(const std::wstring&, std::wstring& err) { err = tr(Sid::err_assoc_windows_only); return false; }
+bool set_default_assoc(const std::wstring&, std::wstring& err) { err = tr(Sid::err_assoc_windows_only); return false; }
 bool unregister_assoc(std::wstring&) { return false; }
 void notify_shell() {}
 } // namespace assoc

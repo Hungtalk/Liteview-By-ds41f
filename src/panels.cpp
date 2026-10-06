@@ -4,6 +4,7 @@
 #include "viewer.h"
 #include "assoc.h"
 #include "codec.h"
+#include "i18n.h"
 
 #include <cmath>
 #include <cstdio>
@@ -14,12 +15,14 @@
 // ---------------------------------------------------------------------------
 std::wstring slide_interval_text(int sec) {
     wchar_t buf[64];
-    swprintf(buf, 64, L"%d 秒", sec);
+    swprintf(buf, 64, tr(Sid::settings_seconds), sec);
     return buf;
 }
 
 static const int kSlideSteps[] = { 2, 3, 5, 8, 10, 15, 30 };
 static const int kSlideStepCount = (int)(sizeof(kSlideSteps) / sizeof(kSlideSteps[0]));
+
+static const int kSettingsRowCount = 14;   // 与 build_settings_rows() 的行数保持一致
 
 static void fill_rect32(u32* base, int stride, const RECT& clip, const RECT& r, u32 color) {
     int x0 = std::max<int>(r.left, clip.left), x1 = std::min<int>(r.right, clip.right);
@@ -68,7 +71,7 @@ void filepanel_load(Viewer& v, const std::wstring& dir) {
     } else {
         std::vector<DirEntry> es;
         if (!list_dir(dir, es)) {
-            viewer_show_toast(v, L"无法打开文件夹");
+            viewer_show_toast(v, tr(Sid::toast_cannot_open_dir));
             return;
         }
         for (const auto& e : es) {
@@ -155,25 +158,44 @@ void filepanel_key(Viewer& v, WPARAM key) {
 // ---------------------------------------------------------------------------
 // 设置面板
 // ---------------------------------------------------------------------------
+// 语言行显示：auto → “自动（跟随系统） · 当前语言名”；否则显示当前语言名
+static std::wstring settings_language_text(const Viewer& v) {
+    std::wstring cur = i18n_current_name();
+    if (v.set.language.empty() || v.set.language == L"auto")
+        return std::wstring(tr(Sid::settings_language_auto)) + L" · " + cur;
+    return cur;
+}
+
+// 语言切换后同步窗口标题（未打开图片时使用本地化的应用名）
+static void update_window_title(Viewer& v) {
+    std::wstring title = v.doc.base.empty()
+        ? std::wstring(tr(Sid::app_title))
+        : (file_name_of(v.doc.path) + L" - LiteView");
+    SetWindowTextW(v.hwnd, title.c_str());
+}
+
 static std::vector<std::pair<std::wstring, std::wstring>> build_settings_rows(Viewer& v) {
     std::vector<std::pair<std::wstring, std::wstring>> rows;
-    auto yn = [](bool b) { return b ? L"开" : L"关"; };
-    static const wchar_t* kBgNames[4] = { L"黑色", L"深灰", L"浅灰", L"白色" };
-    static const wchar_t* kFitNames[3] = { L"适应窗口", L"原始大小", L"记住上次" };
-    rows.push_back({ L"背景颜色", kBgNames[clampi(v.set.bg, 0, 3)] });
-    rows.push_back({ L"打开图片时的缩放", kFitNames[clampi(v.set.fitOnOpen, 0, 2)] });
-    rows.push_back({ L"放大插值（大于 100% 时）", v.set.smoothZoom ? L"平滑（双线性）" : L"锐利（最近邻）" });
-    rows.push_back({ L"按 EXIF 方向自动校正", yn(v.set.exifRotate != 0) });
-    rows.push_back({ L"幻灯片间隔", slide_interval_text(v.set.slideInterval) });
-    rows.push_back({ L"幻灯片循环", yn(v.set.slideLoop != 0) });
-    rows.push_back({ L"记忆最近使用的文件夹", yn(v.set.rememberDir != 0) });
-    rows.push_back({ L"启动时最大化窗口", yn(v.set.startMaximized != 0) });
-    rows.push_back({ L"窗口置顶", yn(v.set.topmost != 0) });
-    rows.push_back({ L"浏览到末尾后循环", yn(v.set.loopFiles != 0) });
-    rows.push_back({ L"文件关联（添加到“打开方式”）",
-                     assoc::is_registered(exe_path()) ? L"已注册 · 点击取消" : L"未注册 · 点击注册" });
-    rows.push_back({ L"恢复默认设置", L"" });
-    rows.push_back({ L"关闭设置面板", L"" });
+    auto yn = [](bool b) { return b ? tr(Sid::settings_on) : tr(Sid::settings_off); };
+    static const Sid kBgIds[4] = { Sid::settings_bg_black, Sid::settings_bg_dark,
+                                   Sid::settings_bg_light, Sid::settings_bg_white };
+    static const Sid kFitIds[3] = { Sid::settings_fit, Sid::settings_actual, Sid::settings_fit_last };
+    rows.push_back({ tr(Sid::settings_bg), tr(kBgIds[clampi(v.set.bg, 0, 3)]) });
+    rows.push_back({ tr(Sid::settings_fit_on_open), tr(kFitIds[clampi(v.set.fitOnOpen, 0, 2)]) });
+    rows.push_back({ tr(Sid::settings_interp),
+                     v.set.smoothZoom ? tr(Sid::settings_interp_smooth) : tr(Sid::settings_interp_sharp) });
+    rows.push_back({ tr(Sid::settings_exif_rotate), yn(v.set.exifRotate != 0) });
+    rows.push_back({ tr(Sid::settings_slide_interval), slide_interval_text(v.set.slideInterval) });
+    rows.push_back({ tr(Sid::settings_slide_loop), yn(v.set.slideLoop != 0) });
+    rows.push_back({ tr(Sid::settings_remember_dir), yn(v.set.rememberDir != 0) });
+    rows.push_back({ tr(Sid::settings_maximized), yn(v.set.startMaximized != 0) });
+    rows.push_back({ tr(Sid::settings_topmost), yn(v.set.topmost != 0) });
+    rows.push_back({ tr(Sid::settings_loop_files), yn(v.set.loopFiles != 0) });
+    rows.push_back({ tr(Sid::settings_language), settings_language_text(v) });
+    rows.push_back({ tr(Sid::settings_assoc),
+                     assoc::is_registered(exe_path()) ? tr(Sid::settings_assoc_on) : tr(Sid::settings_assoc_off) });
+    rows.push_back({ tr(Sid::settings_reset), L"" });
+    rows.push_back({ tr(Sid::settings_close), L"" });
     return rows;
 }
 
@@ -200,25 +222,45 @@ static void settings_action(Viewer& v, int id) {
         break;
     case 9: v.set.loopFiles = v.set.loopFiles ? 0 : 1; break;
     case 10: {
+        // 语言：auto → 各语言包 → 英文，循环切换
+        std::vector<std::wstring> cycle;
+        cycle.push_back(L"auto");
+        bool hasEn = false;
+        for (const auto& p : i18n_available_packs()) {
+            cycle.push_back(p.code);
+            if (to_lower(p.code) == L"en") hasEn = true;
+        }
+        if (!hasEn) cycle.push_back(L"en");
+        size_t cur = 0;
+        for (size_t i = 0; i < cycle.size(); i++)
+            if (to_lower(cycle[i]) == to_lower(v.set.language)) { cur = i; break; }
+        v.set.language = cycle[(cur + 1) % cycle.size()];
+        if (v.set.language == L"auto") i18n_init(L"auto");
+        else i18n_select(v.set.language);
+        update_window_title(v);
+        break; }
+    case 11: {
         std::wstring err;
         if (assoc::is_registered(exe_path())) {
             assoc::unregister_assoc(err);
-            viewer_show_toast(v, L"已取消文件关联");
+            viewer_show_toast(v, tr(Sid::toast_assoc_off));
         } else {
             if (assoc::register_assoc(exe_path(), err) && assoc::set_default_assoc(exe_path(), err))
-                viewer_show_toast(v, L"已注册：可在“打开方式”中选择 LiteView");
+                viewer_show_toast(v, tr(Sid::toast_assoc_on));
             else
-                viewer_show_toast(v, err.empty() ? L"注册失败" : err);
+                viewer_show_toast(v, err.empty() ? tr(Sid::toast_assoc_fail) : err);
         }
         assoc::notify_shell();
         break; }
-    case 11:
+    case 12:
         v.set = Settings();
+        i18n_init(L"auto");
         SetWindowPos(v.hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
         viewer_save_settings(v);
-        viewer_show_toast(v, L"已恢复默认设置");
+        update_window_title(v);
+        viewer_show_toast(v, tr(Sid::toast_defaults_restored));
         break;
-    case 12:
+    case 13:
         v.mode = UiMode::View;
         break;
     default:
@@ -271,7 +313,7 @@ void panels_paint_back(Viewer& v) {
         fp_ensure_visible(v);
     } else if (v.mode == UiMode::Settings) {
         int pw = std::min(dpi_px(v, 560), vw - dpi_px(v, 36));
-        int ph = std::min(dpi_px(v, 540), vh - dpi_px(v, 36));
+        int ph = std::min(dpi_px(v, 600), vh - dpi_px(v, 36));
         int x0 = v.rcView.left + (vw - pw) / 2;
         int y0 = v.rcView.top + (vh - ph) / 2;
         v.spRect = { x0, y0, x0 + pw, y0 + ph };
@@ -281,7 +323,7 @@ void panels_paint_back(Viewer& v) {
         v.spRows.clear();
         int rh = dpi_px(v, 33);
         int y = v.spRect.top + dpi_px(v, 54);
-        for (int i = 0; i < 13; i++) {
+        for (int i = 0; i < kSettingsRowCount; i++) {
             if (y + rh > v.spRect.bottom - dpi_px(v, 30)) break;
             RECT r{ v.spRect.left + dpi_px(v, 8), y, v.spRect.right - dpi_px(v, 8), y + rh };
             v.spRows.push_back(std::make_pair(r, i));
@@ -332,13 +374,13 @@ static void paint_file_panel(Viewer& v, HDC dc) {
     SetTextColor(dc, RGB(240, 240, 240));
     RECT r{ v.fpRect.left + pad, v.fpRect.top + dpi_px(v, 8),
             v.fpRect.right - pad, v.fpRect.top + dpi_px(v, 32) };
-    DrawTextW(dc, v.fpDir.empty() ? L"此电脑" : L"打开图片", -1, &r,
+    DrawTextW(dc, v.fpDir.empty() ? tr(Sid::panel_this_pc) : tr(Sid::panel_open_title), -1, &r,
               DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
     // 路径
     SelectObject(dc, v.fontUI);
     SetTextColor(dc, RGB(150, 170, 200));
-    std::wstring path = v.fpDir.empty() ? L"此电脑（点击标题返回）" : v.fpDir;
+    std::wstring path = v.fpDir.empty() ? std::wstring(tr(Sid::panel_back_hint)) : v.fpDir;
     RECT rp{ v.fpRect.left + pad, v.fpRect.top + dpi_px(v, 32),
              v.fpRect.right - pad, v.fpRect.top + dpi_px(v, 52) };
     DrawTextW(dc, path.c_str(), -1, &rp,
@@ -349,7 +391,7 @@ static void paint_file_panel(Viewer& v, HDC dc) {
     if (n == 0) {
         SetTextColor(dc, RGB(130, 130, 130));
         RECT re{ v.fpRect.left + pad, v.fpListTop, v.fpRect.right - pad, v.fpListTop + v.fpRowH };
-        DrawTextW(dc, L"（没有图片文件）", -1, &re, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+        DrawTextW(dc, tr(Sid::panel_no_files), -1, &re, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
     }
     int visRows = (v.fpListBottom - v.fpListTop) / v.fpRowH;
     for (int i = v.fpTop; i < n && i < v.fpTop + visRows + 1; i++) {
@@ -380,7 +422,7 @@ static void paint_file_panel(Viewer& v, HDC dc) {
     SetTextColor(dc, RGB(140, 140, 140));
     RECT rh{ v.fpRect.left + pad, v.fpRect.bottom - dpi_px(v, 30),
              v.fpRect.right - pad, v.fpRect.bottom - dpi_px(v, 6) };
-    DrawTextW(dc, L"双击/回车 打开 · 退格 上一层 · Esc 关闭", -1, &rh,
+    DrawTextW(dc, tr(Sid::panel_key_hint), -1, &rh,
               DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
 }
 
@@ -390,7 +432,7 @@ static void paint_settings_panel(Viewer& v, HDC dc) {
     SetTextColor(dc, RGB(240, 240, 240));
     RECT rt{ v.spRect.left + pad, v.spRect.top + dpi_px(v, 10),
              v.spRect.right - pad, v.spRect.top + dpi_px(v, 44) };
-    DrawTextW(dc, L"设置", -1, &rt, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+    DrawTextW(dc, tr(Sid::settings_title), -1, &rt, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
 
     auto rows = build_settings_rows(v);
     for (size_t i = 0; i < v.spRows.size() && i < rows.size(); i++) {
@@ -416,7 +458,7 @@ static void paint_settings_panel(Viewer& v, HDC dc) {
     SetTextColor(dc, RGB(140, 140, 140));
     RECT rf{ v.spRect.left + pad, v.spRect.bottom - dpi_px(v, 26),
              v.spRect.right - pad, v.spRect.bottom - dpi_px(v, 6) };
-    std::wstring footer = L"点击条目修改 · 设置保存在 " + v.set.path;
+    std::wstring footer = trf(Sid::settings_footer, v.set.path.c_str());
     DrawTextW(dc, footer.c_str(), -1, &rf,
               DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS);
 }

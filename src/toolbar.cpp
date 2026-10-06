@@ -2,22 +2,23 @@
 //  toolbar.cpp : 自绘工具栏（矢量图标，无系统控件依赖）
 // ============================================================================
 #include "viewer.h"
+#include "i18n.h"
 #include <cmath>
 
 const wchar_t* toolbar_tip(int id) {
     switch (id) {
-    case BTN_OPEN:     return L"打开图片（O）";
-    case BTN_PREV:     return L"上一张（←）";
-    case BTN_NEXT:     return L"下一张（→）";
-    case BTN_ZOOM_OUT: return L"缩小（- / 滚轮）";
-    case BTN_ZOOM_IN:  return L"放大（+ / 滚轮）";
-    case BTN_FIT:      return L"适应窗口（0）";
-    case BTN_ONE:      return L"原始大小 1:1（1）";
-    case BTN_ROT_L:    return L"逆时针旋转（Shift+R）";
-    case BTN_ROT_R:    return L"顺时针旋转（R）";
-    case BTN_SLIDE:    return L"幻灯片放映（空格）";
-    case BTN_FULL:     return L"全屏（F11）";
-    case BTN_SETTINGS: return L"设置（Tab）";
+    case BTN_OPEN:     return tr(Sid::tip_open);
+    case BTN_PREV:     return tr(Sid::tip_prev);
+    case BTN_NEXT:     return tr(Sid::tip_next);
+    case BTN_ZOOM_OUT: return tr(Sid::tip_zoom_out);
+    case BTN_ZOOM_IN:  return tr(Sid::tip_zoom_in);
+    case BTN_FIT:      return tr(Sid::tip_fit);
+    case BTN_ONE:      return tr(Sid::tip_actual);
+    case BTN_ROT_L:    return tr(Sid::tip_rot_ccw);
+    case BTN_ROT_R:    return tr(Sid::tip_rot_cw);
+    case BTN_SLIDE:    return tr(Sid::tip_slide);
+    case BTN_FULL:     return tr(Sid::tip_fullscreen);
+    case BTN_SETTINGS: return tr(Sid::tip_settings);
     default:           return L"";
     }
 }

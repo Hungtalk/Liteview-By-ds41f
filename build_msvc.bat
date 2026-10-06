@@ -23,24 +23,25 @@ if not defined MSBUILD (
 )
 
 if not defined MSBUILD (
-    echo [错误] 未找到 MSBuild / Visual Studio C++ 工具。
-    echo        可直接用 Visual Studio 打开 LiteView.sln 构建（推荐）。
+    echo [ERROR] MSBuild / Visual Studio C++ tools not found.
+    echo         You can open LiteView.sln in Visual Studio and build (recommended).
     exit /b 1
 )
 
-echo === 构建 Release x64 ===
+echo === building Release x64 ===
 %MSBUILD% LiteView.sln /nologo /m /p:Configuration=Release /p:Platform=x64
 if errorlevel 1 (
-    echo [失败] 请查看上方编译输出。
+    echo [FAILED] check the build output above.
     exit /b 1
 )
 
 echo.
 if exist "x64\Release\LiteView.exe" (
-    echo 生成: %~dp0x64\Release\LiteView.exe
+    echo Output: %~dp0x64\Release\LiteView.exe
+    echo Language packs were copied next to it by the project's post-build step.
 ) else if exist "bin\Release\LiteView.exe" (
-    echo 生成: %~dp0bin\Release\LiteView.exe
+    echo Output: %~dp0bin\Release\LiteView.exe
 ) else (
-    echo 构建完成，输出位于工程目录下 x64\Release\
+    echo Build finished; output under x64\Release\
 )
 endlocal

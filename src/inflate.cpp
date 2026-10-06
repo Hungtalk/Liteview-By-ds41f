@@ -2,6 +2,7 @@
 //  inflate.cpp : DEFLATE (RFC1951) + zlib (RFC1950) 解压实现
 // ============================================================================
 #include "inflate.h"
+#include "i18n.h"
 
 namespace {
 
@@ -240,17 +241,17 @@ static u32 adler32_of(const u8* p, size_t n) {
 }
 
 bool zlib_inflate(const u8* data, size_t size, std::vector<u8>& out, std::string* err, size_t reserveHint) {
-    auto fail = [&](const char* m) { if (err) *err = m; return false; };
-    if (size < 6) return fail("zlib 数据过短");
+    auto fail = [&](Sid id) { if (err) *err = utf16_to_utf8(tr(id)); return false; };
+    if (size < 6) return fail(Sid::err_zlib_short);
     u8 cmf = data[0], flg = data[1];
-    if ((cmf & 0x0F) != 8) return fail("不是 deflate 压缩");
-    if (((cmf >> 4) & 0x0F) > 7) return fail("窗口过大");
-    if ((((u32)cmf << 8) | flg) % 31u != 0) return fail("zlib 头校验失败");
-    if (flg & 0x20) return fail("不支持预设字典");
+    if ((cmf & 0x0F) != 8) return fail(Sid::err_zlib_not_deflate);
+    if (((cmf >> 4) & 0x0F) > 7) return fail(Sid::err_zlib_window);
+    if ((((u32)cmf << 8) | flg) % 31u != 0) return fail(Sid::err_zlib_header);
+    if (flg & 0x20) return fail(Sid::err_zlib_dictionary);
     // 尾部 4 字节为 adler32，inflate 会在 deflate 流结束时自行停下
     if (!inflate_raw(data + 2, size - 2, out, reserveHint))
-        return fail("DEFLATE 数据损坏");
+        return fail(Sid::err_zlib_corrupt);
     u32 stored = rd32be(data + size - 4);
-    if (adler32_of(out.data(), out.size()) != stored) return fail("adler32 校验失败");
+    if (adler32_of(out.data(), out.size()) != stored) return fail(Sid::err_zlib_adler);
     return true;
 }

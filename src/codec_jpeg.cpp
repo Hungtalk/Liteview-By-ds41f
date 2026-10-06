@@ -5,6 +5,7 @@
 //  不支持: 12bit、CMYK/YCCK 4 分量（会给出明确错误）
 // ============================================================================
 #include "codec.h"
+#include "i18n.h"
 
 #ifdef LITEVIEW_JPEG_DEBUG
 #  include <cstdio>
@@ -583,7 +584,7 @@ struct Jpeg {
 
     // ---------------- IDCT + 组装 ----------------
     bool build_image(Image& img, std::wstring& err) {
-        if (!gotFrame) { err = L"JPEG 缺少帧头"; return false; }
+        if (!gotFrame) { err = tr(Sid::err_jpeg_no_frame); return false; }
 
         // 每个分量 IDCT 到平面（按补齐网格，写满整个平面）
         for (int i = 0; i < ncomp; i++) {
@@ -595,8 +596,8 @@ struct Jpeg {
                     idct_block(block_ptr(c, bx, by), quant[c.tq], c.plane.data(), stride, bx, by);
         }
 
-        if (ncomp == 4) { err = L"不支持 CMYK/YCCK 彩色 JPEG"; return false; }
-        if (ncomp == 2) { err = L"JPEG 分量数异常"; return false; }
+        if (ncomp == 4) { err = tr(Sid::err_jpeg_cmyk); return false; }
+        if (ncomp == 2) { err = tr(Sid::err_jpeg_components); return false; }
 
         img.reset(w, h);
         if (ncomp == 1) {
@@ -797,7 +798,7 @@ bool parse_exif_tiff(const u8* p, size_t n, ExifInfo& out) {
 // JPEG 入口
 // ============================================================================
 bool jpeg_decode(const u8* p, size_t n, Image& img, ExifInfo& exif, std::wstring& err) {
-    if (n < 4 || p[0] != 0xFF || p[1] != 0xD8) { err = L"不是 JPEG 文件"; return false; }
+    if (n < 4 || p[0] != 0xFF || p[1] != 0xD8) { err = tr(Sid::err_jpeg_not_jpeg); return false; }
 
     Jpeg j;
     j.p = p;
@@ -809,32 +810,32 @@ bool jpeg_decode(const u8* p, size_t n, Image& img, ExifInfo& exif, std::wstring
     int guard = 0;
 
     for (;;) {
-        if (++guard > 100000) { err = L"JPEG 结构异常"; return false; }
+        if (++guard > 100000) { err = tr(Sid::err_jpeg_structure); return false; }
         int m = j.next_marker();
         if (m < 0) break;
         if (m == 0xD9) break;                       // EOI
         if (m == 0x01 || (m >= 0xD0 && m <= 0xD7)) continue;   // 独立的 RST/TEM
 
         if (m == 0xDA) {
-            if (!j.decode_scan()) { err = L"JPEG 扫描数据损坏"; return false; }
+            if (!j.decode_scan()) { err = tr(Sid::err_jpeg_scan); return false; }
             gotScan = true;
             continue;
         }
         switch (m) {
-        case 0xDB: if (!j.parse_dqt()) { err = L"JPEG 量化表损坏"; return false; } break;
-        case 0xC4: if (!j.parse_dht()) { err = L"JPEG 霍夫曼表损坏"; return false; } break;
+        case 0xDB: if (!j.parse_dqt()) { err = tr(Sid::err_jpeg_dqt); return false; } break;
+        case 0xC4: if (!j.parse_dht()) { err = tr(Sid::err_jpeg_dht); return false; } break;
         case 0xC0: case 0xC1: case 0xC2:
-            if (!j.parse_sof(m & 15)) { err = L"JPEG 帧头不支持或损坏"; return false; }
+            if (!j.parse_sof(m & 15)) { err = tr(Sid::err_jpeg_sof); return false; }
             break;
         case 0xDD: {
             size_t content, end;
-            if (!j.segment_bounds(content, end) || content + 2 > end) { err = L"JPEG DRI 损坏"; return false; }
+            if (!j.segment_bounds(content, end) || content + 2 > end) { err = tr(Sid::err_jpeg_dri); return false; }
             j.restartInterval = (int)rd16be(p + content);
             j.pos = end;
             break; }
         case 0xE1: {  // APP1: EXIF
             size_t content, end;
-            if (!j.segment_bounds(content, end)) { err = L"JPEG APP1 损坏"; return false; }
+            if (!j.segment_bounds(content, end)) { err = tr(Sid::err_jpeg_app1); return false; }
             if (end - content >= 6 && !memcmp(p + content, "Exif\0\0", 6)) {
                 parse_exif_tiff(p + content + 6, end - content - 6, j.exif);
             }
@@ -843,14 +844,14 @@ bool jpeg_decode(const u8* p, size_t n, Image& img, ExifInfo& exif, std::wstring
         default: {
             // 其它段（APPn/COM 等）：跳过
             size_t content, end;
-            if (m == 0xDD || (m >= 0xC0 && m <= 0xCF)) { err = L"JPEG 不支持的特性"; return false; }
+            if (m == 0xDD || (m >= 0xC0 && m <= 0xCF)) { err = tr(Sid::err_jpeg_feature); return false; }
             if (!j.segment_bounds(content, end)) break;   // 无长度字段的话直接结束
             j.pos = end;
             break; }
         }
     }
 
-    if (!j.gotFrame || !gotScan) { err = L"JPEG 数据不完整"; return false; }
+    if (!j.gotFrame || !gotScan) { err = tr(Sid::err_jpeg_incomplete); return false; }
     if (!j.build_image(img, err)) return false;
     exif = j.exif;
     return true;

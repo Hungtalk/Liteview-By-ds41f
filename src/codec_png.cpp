@@ -5,6 +5,7 @@
 // ============================================================================
 #include "codec.h"
 #include "inflate.h"
+#include "i18n.h"
 
 namespace {
 
@@ -232,7 +233,7 @@ const int kIys[7] = { 8, 8, 8, 4, 4, 2, 2 };
 
 bool png_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
     static const u8 sig[8] = { 137, 80, 78, 71, 13, 10, 26, 10 };
-    if (n < 8 || memcmp(p, sig, 8) != 0) { err = L"不是 PNG 文件"; return false; }
+    if (n < 8 || memcmp(p, sig, 8) != 0) { err = tr(Sid::err_png_not_png); return false; }
 
     PngState st;
     st.pal.assign(256, 0xFF000000u);
@@ -242,8 +243,8 @@ bool png_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
     PngChunk c;
     while (ps.next(c)) {
         if (!memcmp(c.type, "IHDR", 4)) {
-            if (c.len < 13) { err = L"PNG IHDR 损坏"; return false; }
-            if (!ps.crc_ok()) { err = L"PNG 数据校验失败(CRC)"; return false; }
+            if (c.len < 13) { err = tr(Sid::err_png_ihdr); return false; }
+            if (!ps.crc_ok()) { err = tr(Sid::err_png_crc); return false; }
             st.w = rd32be(c.data);
             st.h = rd32be(c.data + 4);
             st.depth = c.data[8];
@@ -251,21 +252,21 @@ bool png_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
             int comp = c.data[10], filt = c.data[11];
             st.interlace = c.data[12];
             gotIhdr = true;
-            if (comp != 0 || filt != 0 || st.interlace > 1) { err = L"PNG 不支持的特性"; return false; }
-            if (!depth_ok(st.color, st.depth)) { err = L"PNG 位深/颜色类型不合法"; return false; }
+            if (comp != 0 || filt != 0 || st.interlace > 1) { err = tr(Sid::err_png_feature); return false; }
+            if (!depth_ok(st.color, st.depth)) { err = tr(Sid::err_png_depth); return false; }
             if (st.w == 0 || st.h == 0 || st.w > kMaxImageSide || st.h > kMaxImageSide ||
-                (u64)st.w * st.h > kMaxImagePixels) { err = L"PNG 尺寸无效或过大"; return false; }
+                (u64)st.w * st.h > kMaxImagePixels) { err = tr(Sid::err_png_size); return false; }
         } else if (!memcmp(c.type, "PLTE", 4)) {
-            if (!ps.crc_ok()) { err = L"PNG 数据校验失败(CRC)"; return false; }
+            if (!ps.crc_ok()) { err = tr(Sid::err_png_crc); return false; }
             int count = (int)std::min<u32>(c.len / 3, 256);
             for (int i = 0; i < count; i++)
                 st.pal[i] = pack_argb(255, c.data[i * 3], c.data[i * 3 + 1], c.data[i * 3 + 2]);
         } else if (!memcmp(c.type, "tRNS", 4)) {
-            if (!ps.crc_ok()) { err = L"PNG 数据校验失败(CRC)"; return false; }
+            if (!ps.crc_ok()) { err = tr(Sid::err_png_crc); return false; }
             st.hasTrns = true;
             st.trnsRaw.assign(c.data, c.data + c.len);
         } else if (!memcmp(c.type, "IDAT", 4)) {
-            if (!ps.crc_ok()) { err = L"PNG 数据校验失败(CRC)"; return false; }
+            if (!ps.crc_ok()) { err = tr(Sid::err_png_crc); return false; }
             st.idat.insert(st.idat.end(), c.data, c.data + c.len);
         } else if (!memcmp(c.type, "IEND", 4)) {
             break;
@@ -273,7 +274,7 @@ bool png_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
         // 其它块忽略
     }
 
-    if (!gotIhdr || st.idat.empty()) { err = L"PNG 数据不完整"; return false; }
+    if (!gotIhdr || st.idat.empty()) { err = tr(Sid::err_png_incomplete); return false; }
     if (st.color == 3) {
         // 调色板透明表
         if (st.hasTrns) {
@@ -299,7 +300,7 @@ bool png_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
     size_t hint = (size_t)st.h * (((size_t)st.w * bitsPerPixel + 7) / 8 + 1);
     std::string zerr;
     if (!zlib_inflate(st.idat.data(), st.idat.size(), raw, &zerr, hint)) {
-        err = L"PNG 解压失败: " + utf8_to_utf16(zerr);
+        err = trf(Sid::err_png_uncompress, utf8_to_utf16(zerr).c_str());
         return false;
     }
 
@@ -312,12 +313,12 @@ bool png_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
 
     if (st.interlace == 0) {
         const size_t rowBytes = ((size_t)st.w * bitsPerPixel + 7) / 8;
-        if (raw.size() < (rowBytes + 1) * (size_t)st.h) { err = L"PNG 像素数据不完整"; return false; }
+        if (raw.size() < (rowBytes + 1) * (size_t)st.h) { err = tr(Sid::err_png_pixels_incomplete); return false; }
         for (u32 y = 0; y < st.h; y++) {
             const u8* src = raw.data() + (size_t)y * (rowBytes + 1);
             memcpy(cur.data(), src + 1, rowBytes);
             if (!unfilter_row(cur.data(), y ? prev.data() : nullptr, rowBytes, filterUnit, src[0])) {
-                err = L"PNG 行滤波类型非法"; return false;
+                err = tr(Sid::err_png_filter); return false;
             }
             dec.line(cur.data(), (int)st.w, lineBuf.data());
             memcpy(img.row((int)y), lineBuf.data(), (size_t)st.w * 4);
@@ -330,13 +331,13 @@ bool png_decode(const u8* p, size_t n, Image& img, std::wstring& err) {
             const int ph = ((int)st.h - kIy0[pass] + kIys[pass] - 1) / kIys[pass];
             if (pw <= 0 || ph <= 0) continue;
             const size_t rowBytes = ((size_t)pw * bitsPerPixel + 7) / 8;
-            if (off + (rowBytes + 1) * (size_t)ph > raw.size()) { err = L"PNG 像素数据不完整"; return false; }
+            if (off + (rowBytes + 1) * (size_t)ph > raw.size()) { err = tr(Sid::err_png_pixels_incomplete); return false; }
             for (int y = 0; y < ph; y++) {
                 const u8* src = raw.data() + off;
                 off += rowBytes + 1;
                 memcpy(cur.data(), src + 1, rowBytes);
                 if (!unfilter_row(cur.data(), y ? prev.data() : nullptr, rowBytes, filterUnit, src[0])) {
-                    err = L"PNG 行滤波类型非法"; return false;
+                    err = tr(Sid::err_png_filter); return false;
                 }
                 dec.line(cur.data(), pw, lineBuf.data());
                 const int cy = kIy0[pass] + y * kIys[pass];

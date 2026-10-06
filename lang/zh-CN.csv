@@ -1,0 +1,142 @@
+# LiteView language pack / 语言包：简体中文（zh-CN）
+# 格式: key,english,translation（UTF-8；translation 留空 = 使用内置英文）
+# 占位符（%d %s 等）需与英文保持一致；\n = 换行、\t = 制表、\\ = 反斜杠
+# name: 中文（简体）
+key,english,translation
+app_title,LiteView Image Viewer,LiteView 图片查看器
+tip_open,Open image (O),打开图片（O）
+tip_prev,Previous image (←),上一张（←）
+tip_next,Next image (→),下一张（→）
+tip_zoom_out,Zoom out (- / wheel),缩小（- / 滚轮）
+tip_zoom_in,Zoom in (+ / wheel),放大（+ / 滚轮）
+tip_fit,Fit to window (0),适应窗口（0）
+tip_actual,Actual size 1:1 (1),原始大小 1:1（1）
+tip_rot_ccw,Rotate counter-clockwise (Shift+R),逆时针旋转（Shift+R）
+tip_rot_cw,Rotate clockwise (R),顺时针旋转（R）
+tip_slide,Slideshow (Space),幻灯片放映（空格）
+tip_fullscreen,Fullscreen (F11),全屏（F11）
+tip_settings,Settings (Tab),设置（Tab）
+status_loading,Loading…,正在加载…
+status_no_image,"No image open — press O to choose an image, or drag one into the window",未打开图片 — 按 O 选择图片，或将图片拖入窗口
+status_frames,"   %d frames (GIF)","   %d 帧(GIF)"
+status_slideshow,"   Slideshow playing","   幻灯片播放中"
+empty_hint_line1,"Drag an image here, or press O to open one",把图片拖到这里，或按 O 打开图片
+empty_hint_line2,"Supports JPG / PNG / GIF / BMP — built-in decoders, no system components",支持 JPG / PNG / GIF / BMP — 自研解码，不依赖系统组件
+info_path,"Path:  ","路径:  "
+info_size,Size:  %d × %d        Format:  %s        File:  %s,尺寸:  %d × %d        格式:  %s        文件:  %s
+info_zoom,Zoom:  %d%%        Viewport:  %d × %d,缩放:  %d%%        视图区域:  %d × %d
+info_gif_frames,GIF frames:  %d (showing first frame),GIF 帧数:  %d（显示第一帧）
+info_camera,"Camera:  ","相机:  "
+info_date,"Date taken:  ","拍摄时间:  "
+info_shutter,"Shutter ","快门 "
+info_aperture,"Aperture ","光圈 "
+info_focal,"Focal length ","焦距 "
+info_exif_orientation,EXIF orientation:  %d (auto-corrected),EXIF 方向:  %d（已自动校正）
+info_close_hint,Press I or click anywhere to close,按 I 或点击任意处关闭
+panel_this_pc,This PC,此电脑
+panel_open_title,Open image,打开图片
+panel_back_hint,This PC (click title to go back),此电脑（点击标题返回）
+panel_no_files,(No image files),（没有图片文件）
+panel_key_hint,Double-click/Enter open · Backspace up · Esc close,双击/回车 打开 · 退格 上一层 · Esc 关闭
+toast_cannot_open_dir,Cannot open folder,无法打开文件夹
+toast_only_one,Only one image in this folder,目录中只有这一张图片
+toast_last,Already at the last image,已经是最后一张
+toast_first,Already at the first image,已经是第一张
+toast_no_file,File does not exist,文件不存在
+toast_cannot_open,Cannot open: %s,无法打开: %s
+toast_assoc_off,File association removed,已取消文件关联
+toast_assoc_on,"Registered: LiteView is available in ""Open with""",已注册：可在“打开方式”中选择 LiteView
+toast_assoc_fail,Registration failed,注册失败
+toast_defaults_restored,Defaults restored,已恢复默认设置
+settings_title,Settings,设置
+settings_bg,Background color,背景颜色
+settings_bg_black,Black,黑色
+settings_bg_dark,Dark gray,深灰
+settings_bg_light,Light gray,浅灰
+settings_bg_white,White,白色
+settings_fit_on_open,Zoom when opening an image,打开图片时的缩放
+settings_fit,Fit to window,适应窗口
+settings_actual,Actual size,原始大小
+settings_fit_last,Remember last,记住上次
+settings_interp,Zoom interpolation (above 100%),放大插值（大于 100% 时）
+settings_interp_smooth,Smooth (bilinear),平滑（双线性）
+settings_interp_sharp,Sharp (nearest),锐利（最近邻）
+settings_exif_rotate,Auto-correct by EXIF orientation,按 EXIF 方向自动校正
+settings_slide_interval,Slideshow interval,幻灯片间隔
+settings_slide_loop,Slideshow loop,幻灯片循环
+settings_remember_dir,Remember last folder,记忆最近使用的文件夹
+settings_maximized,Start maximized,启动时最大化窗口
+settings_topmost,Always on top,窗口置顶
+settings_loop_files,Loop after last image,浏览到末尾后循环
+settings_language,Language,语言
+settings_language_auto,Auto (follow system),自动（跟随系统）
+settings_language_en,English,English
+settings_assoc,"File association (add to ""Open with"")",文件关联（添加到“打开方式”）
+settings_assoc_on,Registered · click to remove,已注册 · 点击取消
+settings_assoc_off,Not registered · click to register,未注册 · 点击注册
+settings_reset,Reset to defaults,恢复默认设置
+settings_close,Close settings,关闭设置面板
+settings_footer,Click a row to change · Settings saved to %s,点击条目修改 · 设置保存在 %s
+settings_on,On,开
+settings_off,Off,关
+settings_seconds,%d s,%d 秒
+cli_assoc_registered,"File association registered.\n\nTip: On Windows 10/11, to set it as the default app, confirm via\n""Open with → Choose another app → LiteView → Always use"".",已注册文件关联。\n\n提示：Windows 10/11 中如需设为“默认应用”，请在\n「打开方式 → 选择其他应用 → LiteView → 始终使用」中确认。
+cli_assoc_removed,File association removed.,已取消文件关联。
+cli_operation_failed,Operation failed,操作失败
+assoc_friendly_name,LiteView Image,LiteView 图片
+err_assoc_progid,Failed to write ProgID,写入 ProgID 失败
+err_assoc_default,Failed to set the default association (possibly restricted by policy),设置默认关联失败（可能被系统策略限制）
+err_assoc_windows_only,Windows only,仅 Windows 支持
+err_file_too_small,File too small to be a valid image,文件太小，不是有效图片
+err_unsupported_format,Unsupported image format (supported: BMP / PNG / JPEG / GIF),不支持的图片格式（支持 BMP / PNG / JPEG / GIF）
+err_bmp_header,Corrupt BMP file header,BMP 文件头损坏
+err_bmp_version,Unsupported BMP version,不支持的 BMP 版本
+err_bmp_masks,Missing BMP color masks,BMP 掩码缺失
+err_bmp_size,Invalid or oversized BMP dimensions,BMP 尺寸无效或过大
+err_bmp_bpp,Unsupported BMP bit depth,BMP 位深不支持
+err_bmp_compression,Unsupported BMP compression,BMP 压缩方式不支持
+err_bmp_palette,BMP palette out of bounds,BMP 调色板越界
+err_bmp_rle_bpp,Invalid BMP RLE bit depth,BMP RLE 位深错误
+err_bmp_no_pixels,Missing BMP pixel data,BMP 像素数据缺失
+err_bmp_pixels_incomplete,Incomplete BMP pixel data,BMP 像素数据不完整
+err_gif_not_gif,Not a GIF file,不是 GIF 文件
+err_gif_size,Invalid or oversized GIF dimensions,GIF 尺寸无效或过大
+err_gif_palette,GIF palette out of bounds,GIF 调色板越界
+err_gif_corrupt,Corrupt GIF data,GIF 数据损坏
+err_gif_pixels_incomplete,Incomplete GIF pixel data,GIF 像素数据不完整
+err_gif_block,Corrupt GIF image block,GIF 图像块损坏
+err_gif_incomplete,Incomplete GIF data,GIF 数据不完整
+err_jpeg_no_frame,JPEG is missing its frame header,JPEG 缺少帧头
+err_jpeg_cmyk,CMYK/YCCK color JPEG is not supported,不支持 CMYK/YCCK 彩色 JPEG
+err_jpeg_components,Unexpected JPEG component count,JPEG 分量数异常
+err_jpeg_not_jpeg,Not a JPEG file,不是 JPEG 文件
+err_jpeg_structure,Corrupt JPEG structure,JPEG 结构异常
+err_jpeg_scan,Corrupt JPEG scan data,JPEG 扫描数据损坏
+err_jpeg_dqt,Corrupt JPEG quantization table,JPEG 量化表损坏
+err_jpeg_dht,Corrupt JPEG Huffman table,JPEG 霍夫曼表损坏
+err_jpeg_sof,Unsupported or corrupt JPEG frame header,JPEG 帧头不支持或损坏
+err_jpeg_dri,Corrupt JPEG DRI segment,JPEG DRI 损坏
+err_jpeg_app1,Corrupt JPEG APP1 segment,JPEG APP1 损坏
+err_jpeg_feature,Unsupported JPEG feature,JPEG 不支持的特性
+err_jpeg_incomplete,Incomplete JPEG data,JPEG 数据不完整
+err_png_not_png,Not a PNG file,不是 PNG 文件
+err_png_ihdr,Corrupt PNG IHDR,PNG IHDR 损坏
+err_png_crc,PNG data check failed (CRC),PNG 数据校验失败(CRC)
+err_png_feature,Unsupported PNG feature,PNG 不支持的特性
+err_png_depth,Invalid PNG bit depth / color type,PNG 位深/颜色类型不合法
+err_png_size,Invalid or oversized PNG dimensions,PNG 尺寸无效或过大
+err_png_incomplete,Incomplete PNG data,PNG 数据不完整
+err_png_uncompress,PNG decompression failed: %s,PNG 解压失败: %s
+err_png_pixels_incomplete,Incomplete PNG pixel data,PNG 像素数据不完整
+err_png_filter,Invalid PNG row filter type,PNG 行滤波类型非法
+err_zlib_short,zlib data too short,zlib 数据过短
+err_zlib_not_deflate,Not deflate-compressed data,不是 deflate 压缩
+err_zlib_window,Invalid zlib window size,窗口过大
+err_zlib_header,zlib header check failed,zlib 头校验失败
+err_zlib_dictionary,Preset dictionary not supported,不支持预设字典
+err_zlib_corrupt,Corrupt DEFLATE data,DEFLATE 数据损坏
+err_zlib_adler,adler32 checksum failed,adler32 校验失败
+err_file_open,Cannot open file,无法打开文件
+err_file_size,Cannot determine file size,无法获取文件大小
+err_file_too_big,File too large (over 2 GB),文件太大（超过 2GB）
+err_file_read,Failed to read file,读取文件失败

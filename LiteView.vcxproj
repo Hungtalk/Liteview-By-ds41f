@@ -24,30 +24,36 @@
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>LiteView</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <!-- 未指定 PlatformToolset：由 IDE 的默认工具集决定（VS2022= v143，VS2026 可重新定向） -->
+    <!-- 显式声明工具集：不写时 MSBuild 会回退到 v100（VS2010）并报 MSB8020，
+         导致命令行 build_msvc.bat 失败；VS2026 = v145，VS2022 打开时按提示
+         重定向到 v143 即可（IDE 会自动改写这四行）。 -->
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings" />
@@ -80,9 +86,13 @@
       <AdditionalManifestFiles>$(ProjectDir)res\LiteView.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
     <PostBuildEvent>
-      <!-- 语言包随构建复制到输出目录（找不到 lang 也不影响构建） -->
-      <Command>if not exist "$(OutDir)lang" mkdir "$(OutDir)lang"
-xcopy /Y /I /Q "$(ProjectDir)lang\*.csv" "$(OutDir)lang" &gt;nul 2&gt;nul
+      <!-- 语言包已内嵌进 exe（src\lang_packs_generated.cpp），因此不再需要随附
+           lang\ 目录。这里只在 lang\ 存在时把它复制过去，作为“可覆盖内嵌译文”
+           的外置副本，方便不重新编译就替换译文；缺失时不影响构建。 -->
+      <Command>if exist "$(ProjectDir)lang\*.csv" (
+  if not exist "$(OutDir)lang" mkdir "$(OutDir)lang"
+  xcopy /Y /I /Q "$(ProjectDir)lang\*.csv" "$(OutDir)lang" &gt;nul 2&gt;nul
+)
 exit /b 0</Command>
     </PostBuildEvent>
     <ResourceCompile>
@@ -112,6 +122,13 @@ exit /b 0</Command>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\i18n.cpp" />
+    <ClCompile Include="src\lang_packs_generated.cpp" Condition="Exists('$(MSBuildProjectDirectory)\src\lang_packs_generated.cpp')">
+      <!-- 由 tools/embed_lang.py 从 lang\*.csv 生成（已随仓库提交，克隆即可构建）。
+           改过语言包后重新生成：python tools\embed_lang.py -->
+      <ObjectFileName>$(IntDir)lang_packs_generated.obj</ObjectFileName>
+    </ClCompile>
+    <!-- 生成文件缺失时（没有 Python / 没有 lang\*.csv）用占位实现，保证仍可编译 -->
+    <ClCompile Include="src\lang_packs_stub.cpp" Condition="!Exists('$(MSBuildProjectDirectory)\src\lang_packs_generated.cpp')" />
     <ClCompile Include="src\viewer.cpp" />
     <ClCompile Include="src\toolbar.cpp" />
     <ClCompile Include="src\panels.cpp" />
@@ -139,6 +156,7 @@ exit /b 0</Command>
     <ClInclude Include="src\viewer.h" />
     <ClInclude Include="src\resource.h" />
     <ClInclude Include="src\i18n.h" />
+    <ClInclude Include="src\i18n_embedded.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="LiteView.rc" />
@@ -152,8 +170,12 @@ exit /b 0</Command>
     <None Include="build_mingw.sh" />
     <None Include="README.zh-CN.md" />
     <None Include="lang\zh-CN.csv" />
+    <None Include="lang\ja-JP.csv" />
     <None Include="lang\template.csv" />
     <None Include="lang\README.md" />
+    <None Include="tools\embed_lang.py" />
+    <None Include="docs\development.md" />
+    <None Include="docs\git-proxy.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -86,7 +86,9 @@ build_mingw.bat
 ./build_mingw.sh
 ```
 
-> 三条构建路径都会把 `lang\*.csv` 复制到 `LiteView.exe` 旁（MSVC 为生成后事件；MinGW 脚本含复制步骤），语言包开箱即用。
+> 语言包**已编译进 exe**（`tools/embed_lang.py` → `src/lang_packs_generated.cpp`，随仓库提交），
+> 因此单文件 `LiteView.exe` 本身就是多语言的。构建脚本仍会把 `lang\*.csv` 复制到输出目录（若存在），
+> 此时它起的是**覆盖**作用而非必需项。若构建环境没有 Python，则直接使用仓库中已有的生成文件。
 
 ---
 
@@ -110,10 +112,18 @@ build_mingw.bat
 ## 六、多语言（语言包）
 
 - 界面默认显示**内置英文**；启动时按**系统界面语言**自动选择语言包。
-- 翻译文本放在 `LiteView.exe` 同目录的 `lang\` 文件夹（或 `%LOCALAPPDATA%\LiteView\lang`）的独立 CSV 语言包中（如 `zh-CN` → `lang\zh-CN.csv`）；没有匹配的语言包时回退内置英文。
-- 已内置：[`lang/zh-CN.csv`](lang/zh-CN.csv)（简体中文）；[`lang/template.csv`](lang/template.csv) 为新语言的起步模板，三列格式（`key,english,translation`）见 [`lang/README.md`](lang/README.md)。
-- 手动切换：**设置面板 → 语言**（在“自动（跟随系统）/ 各语言包 / 英文”间循环），或启动参数 `LiteView.exe --lang=zh-CN`；选择保存在 `LiteView.ini` 的 `[general] language`。
+- **语言包已编译进单个 `LiteView.exe`**，无需随程序附带 `lang\` 目录：构建前由 `tools/embed_lang.py`
+  把 `lang\*.csv` 转成字节数组（`src/lang_packs_generated.cpp`，随仓库提交），因此一个 exe 就是多语言的。
+- 已内置：[`lang/zh-CN.csv`](lang/zh-CN.csv)（简体中文）、[`lang/ja-JP.csv`](lang/ja-JP.csv)（日语 日本語）；
+  [`lang/template.csv`](lang/template.csv) 为新语言的起步模板，三列格式（`key,english,translation`）见 [`lang/README.md`](lang/README.md)。
+- **外置语言包优先级更高**：把 `<代码>.csv` 放到 `LiteView.exe` 同目录的 `lang\`（或 `%LOCALAPPDATA%\LiteView\lang`）
+  即可覆盖同名内嵌包，从而**不重新编译**就替换或新增译文（如 `zh-CN` → `lang\zh-CN.csv`）。
+  自动匹配同时支持地区码回退（系统返回 `ja` 也能命中 `ja-JP`）；没有匹配的语言包时回退内置英文。
+- 手动切换：**设置面板 → 语言**（在“自动（跟随系统）/ 可用语言包 / 英文”间循环），或启动参数
+  `LiteView.exe --lang=ja-JP`；选择保存在 `LiteView.ini` 的 `[general] language`。
 - 翻译时请保留 `%d`、`%s`、`%%` 等占位符；`\n` = 换行、`\t` = 制表符、`\\` = 反斜杠；留空 = 使用英文。
+- 想把某语言加入**内置**集合：放好 `lang\<代码>.csv` 后执行 `python tools\embed_lang.py` 再重新编译；
+  `python tools\embed_lang.py --check` 可校验覆盖率、未知 key 与占位符一致性。
 
 ---
 
@@ -127,7 +137,8 @@ LiteView/
 ├─ res/  app.ico, LiteView.manifest
 ├─ src/
 │   ├─ common.h  image.*  util.*        基础类型 / 图像缓冲 / 路径与 INI
-│   ├─ i18n.*                          多语言（内置英文 + lang\*.csv 语言包）
+│   ├─ i18n.*  i18n_embedded.h          多语言（英文 + 内嵌 / 外置 CSV 语言包）
+│   ├─ lang_packs_generated.cpp         由 tools/embed_lang.py 生成（随仓库提交）
 │   ├─ inflate.*                       自研 DEFLATE + zlib
 │   ├─ codec.h  codec.cpp               格式分发
 │   ├─ codec_bmp.cpp / png / jpeg / gif 自研解码器
@@ -138,10 +149,13 @@ LiteView/
 │   ├─ toolbar.cpp                      自绘工具栏 + 矢量图标
 │   ├─ panels.cpp                       文件面板 + 设置面板
 │   └─ main.cpp                         入口 / 单实例 / 拖放 / 命令行
-├─ lang/  zh-CN.csv, template.csv, README.md
-│                                      语言包（CSV）+ 翻译说明
+├─ lang/  zh-CN.csv, ja-JP.csv, template.csv, README.md
+│                                      语言包源文件（CSV）+ 翻译说明
+├─ docs/git-proxy.md                    git 代理 / TLS 配置说明
+├─ docs/development.md                  工具链 / 构建坑 / 测试与 CI 说明
 ├─ tools/make_icon.py                   图标生成脚本（Pillow）
-└─ tests/                               解码器测试（PIL + djpeg）+ 语言包校验工具
+├─ tools/embed_lang.py                  把 lang\*.csv 编译进 exe
+└─ tests/                               解码器测试（PIL + djpeg）+ 语言包校验
 ```
 
 ## 八、解码器说明与限制
@@ -175,7 +189,9 @@ LiteView/
 - **关联后资源管理器图标没变？** 注销一次或重启资源管理器；`--unregister` 后重新注册。
 - **为什么界面不含系统对话框？** 为了在“照片/通用对话框被移除”的系统上依旧可用，文件选择、设置、信息均为自绘面板。
 - **GIF 不动？** 本查看器定位是轻量查看，动画只显示首帧；状态栏会显示总帧数。
-- **想加别的语言？** 复制 `lang\template.csv` 为 `lang\<代码>.csv`（如 `de.csv`），翻译第三列并保留占位符，以 UTF-8 保存；启动即自动识别（设置面板 → 语言 可立即切换）。
+- **想加别的语言？** 复制 `lang\template.csv` 为 `lang\<代码>.csv`（如 `de.csv`），翻译第三列并保留占位符，以 UTF-8 保存。放到 `LiteView.exe` 旁即可用（设置面板 → 语言 可立即切换）；若要并入**内置**语言集合，再执行 `python tools\embed_lang.py` 并重新编译。
+- **发布时要带 `lang\` 目录吗？** 不必。内置语言已编进 exe，`lang\` 目录只是用来覆盖或新增语言包。
+- **git 拉代码报 `Connection was reset` / `certificate chain is incomplete`？** 见 [docs/git-proxy.md](docs/git-proxy.md) 的代理与 TLS 配置。
 
 ## 十一、许可证
 

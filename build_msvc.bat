@@ -28,7 +28,15 @@ if not defined MSBUILD (
     exit /b 1
 )
 
-echo === building Release x64 ===
+echo === [1/2] embed language packs: lang\*.csv -> src\lang_packs_generated.cpp ===
+python tools\embed_lang.py
+if errorlevel 1 (
+    echo [WARN] language pack generation failed ^(no Python or no lang\*.csv^).
+    echo        Using the committed src\lang_packs_generated.cpp instead.
+)
+
+echo.
+echo === [2/2] building Release x64 ===
 %MSBUILD% LiteView.sln /nologo /m /p:Configuration=Release /p:Platform=x64
 if errorlevel 1 (
     echo [FAILED] check the build output above.
@@ -38,7 +46,7 @@ if errorlevel 1 (
 echo.
 if exist "x64\Release\LiteView.exe" (
     echo Output: %~dp0x64\Release\LiteView.exe
-    echo Language packs were copied next to it by the project's post-build step.
+    echo Language packs are embedded in the exe; lang\next to it is optional ^(overrides^).
 ) else if exist "bin\Release\LiteView.exe" (
     echo Output: %~dp0bin\Release\LiteView.exe
 ) else (

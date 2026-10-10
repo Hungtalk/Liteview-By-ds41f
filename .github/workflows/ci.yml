@@ -1,18 +1,22 @@
 # ============================================================================
 #  LiteView CI
 #
-#  设计原则：CI 步骤与 README「测试（可选）」以及 docs/development.md 中记录的
-#  本地命令保持一致 —— 本地怎么跑，CI 就怎么跑，便于复现失败。
+#  Steps mirror the commands documented in README (Tests) and docs/development.md,
+#  so a local reproduction is always possible.
 #
-#  作业：
-#    i18n    (ubuntu) 语言包校验 + 内嵌语言包回归测试（快，先跑）
-#    decode  (ubuntu) 解码器逐像素对照（Pillow；djpeg 可选）
-#    msbuild (windows) MSVC Release x64 真实构建（含内嵌语言包）
-#    release (windows, 仅 tag) 构建并上传可执行文件
+#  Jobs:
+#    i18n    (ubuntu + windows) language pack validation + embedded pack regression
+#    decode  (ubuntu)           decoder pixel comparison (Pillow; djpeg optional)
+#    msbuild (windows)          real MSVC build of all four configurations
+#    release (windows, tags)    build and publish a single-file exe
 #
-#  注意：LiteView.vcxproj 里 PlatformToolset 写死为 v145（VS2026）。CI runner
-#  的工具集版本会变，因此这里用 /p:PlatformToolset= 按实际安装版本覆盖，
-#  而不是改动仓库里的工程文件。
+#  Note: LiteView.vcxproj pins PlatformToolset to v145 (VS2026). Hosted runners
+#  change toolset versions over time, so CI overrides it with
+#  /p:PlatformToolset=<detected> instead of editing the project file.
+#
+#  Keep every inline script ASCII-only: the runner materialises `run:` blocks into
+#  temporary script files that are read using the ANSI code page, so non-ASCII
+#  content inside them is not reliable.
 # ============================================================================
 name: CI
 
@@ -32,7 +36,7 @@ concurrency:
 
 jobs:
   # --------------------------------------------------------------------------
-  # 语言包：CSV 完整性 + 内嵌包运行时行为（不需要图形界面）
+  # Language packs: CSV integrity plus embedded-pack runtime behaviour
   # --------------------------------------------------------------------------
   i18n:
     name: i18n checks (${{ matrix.os }})
@@ -49,15 +53,17 @@ jobs:
         shell: bash
         run: |
           set -e
-          # 语言包实现：优先内嵌生成物，缺失时用占位实现（与 tests/run_all.sh 同规则）
+          # Pack implementation: prefer the generated embedded data, fall back to
+          # the stub (same rule as tests/run_all.sh).
           PACK_SRC=src/lang_packs_generated.cpp
           [ -f "$PACK_SRC" ] || PACK_SRC=src/lang_packs_stub.cpp
           echo "pack source: $PACK_SRC"
-          # codec_*.cpp 通过 tr()/trf() 输出本地化信息，因此 i18n 必须一起链接
+          # codec_*.cpp reports errors through tr()/trf(), so i18n must be linked in.
           CXX="g++ -std=c++17 -O2 -Isrc"
           $CXX src/util.cpp src/i18n.cpp "$PACK_SRC" tests/i18n_tool.cpp -o i18n_tool
           if [ "$RUNNER_OS" = "Windows" ]; then
-            # Windows runner 自带 mingw g++（WinLibs）；内嵌测试需要真实 exe
+            # The windows runner ships a mingw g++ (WinLibs). The embedded test needs
+            # a real exe, since pack resolution depends on the executable directory.
             $CXX src/util.cpp src/i18n.cpp "$PACK_SRC" \
               tests/i18n_embed_test.cpp -o i18n_embed_test.exe
           else
@@ -85,7 +91,7 @@ jobs:
         run: ./i18n_tool_embedded list > /dev/null && echo "embedded build OK"
 
   # --------------------------------------------------------------------------
-  # 解码器：与 Pillow 逐像素对照（无损格式零差异），djpeg 存在时再做严格对照
+  # Decoders: pixel comparison against Pillow, plus djpeg strict comparison
   # --------------------------------------------------------------------------
   decode:
     name: decoder pixel comparison
@@ -107,7 +113,7 @@ jobs:
 
       - name: Build decoder test harness
         run: |
-          # codec_*.cpp 调用 tr()/trf()，因此链接时必须带上 i18n.cpp 与一个语言包实现
+          # codec_*.cpp calls tr()/trf(), so link i18n and a pack implementation.
           g++ -std=c++17 -O2 -Isrc \
             src/util.cpp src/i18n.cpp src/lang_packs_generated.cpp \
             src/image.cpp src/inflate.cpp src/codec.cpp \
@@ -145,7 +151,7 @@ jobs:
           python check_orient.py
 
   # --------------------------------------------------------------------------
-  # MSVC 真实构建（Windows）：确保工程文件在干净环境下也能构建
+  # MSVC build on Windows: make sure the project builds in a clean environment
   # --------------------------------------------------------------------------
   msbuild:
     name: MSVC Release x64
@@ -154,8 +160,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # windows runner 上默认没有 python 命令（且 WindowsApps 的商店存根不可用），
-      # 而 tools/embed_lang.py 需要它来生成内嵌语言包
+      # Hosted windows runners have no `python` on PATH by default (the WindowsApps
+      # store stub is not usable), while tools/embed_lang.py needs it.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
@@ -176,8 +182,8 @@ jobs:
         id: toolset
         shell: pwsh
         run: |
-          # VC 工具集可能装在任意盘符（windows-latest 实测在 D:\Program Files\...），
-          # 因此先让 vswhere 给出安装根目录，再在它下面找 MSVC 版本目录
+          # The VC toolset may live on any drive (windows-latest uses D:\Program Files),
+          # so ask vswhere for the install root first, then look for MSVC under it.
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products * `
             -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
@@ -202,11 +208,11 @@ jobs:
         run: |
           $msbuild = "${{ steps.vs.outputs.msbuild }}"
           $toolset = "${{ steps.toolset.outputs.value }}"
-          # 某些镜像上 MSBuild 未加入 PATH（运行时才最可靠）
+          # MSBuild is not always on PATH on hosted images.
           if (-not (Get-Command $msbuild -ErrorAction SilentlyContinue)) {
             $env:PATH = "$(Split-Path $msbuild -Parent);$env:PATH"
           }
-          # 解决方案层级的平台名是 x64 / x86（x86 映射到工程的 Win32）
+          # Solution-level platform names are x64 / x86 (x86 maps to project Win32).
           foreach ($cfg in 'Debug', 'Release') {
             foreach ($plat in 'x64', 'x86') {
               Write-Host "=== $cfg|$plat ==="
@@ -223,13 +229,18 @@ jobs:
           if (-not (Test-Path $exe)) { throw "$exe not found" }
           $size = (Get-Item $exe).Length
           Write-Host "LiteView.exe = $size bytes"
-          # 语言包内嵌的判据：exe 中存在语言包文件名与 "# name:" 元数据字节
-          $bytes = [System.IO.File]::ReadAllBytes($exe)
-          $text = [System.Text.Encoding]::UTF8.GetString($bytes)
-          foreach ($needle in 'ja-JP.csv', 'zh-CN.csv', '# name:') {
-            if ($text -notlike "*$needle*") { throw "embedded pack data missing: $needle" }
+          # Read the PE as raw text and look for markers that can only come from the
+          # generated pack arrays (the CSV header and comment lines are embedded verbatim).
+          $text = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes($exe))
+          foreach ($needle in 'ja-JP', 'zh-CN', '# name:', 'translation') {
+            # Use IndexOf rather than -like: wildcard matching over a 500 KB string
+            # proved unreliable in practice.
+            if ($text.IndexOf($needle, [System.StringComparison]::Ordinal) -lt 0) {
+              throw "embedded pack data missing: $needle"
+            }
+            Write-Host "found: $needle"
           }
-          Write-Host "embedded pack data found"
+          Write-Host "embedded pack data OK"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -238,7 +249,7 @@ jobs:
           if-no-files-found: error
 
   # --------------------------------------------------------------------------
-  # 打 tag 时发布单文件 exe（语言包已内嵌，无需附带 lang\ 目录）
+  # Publish a single-file exe on v* tags (packs are embedded, no lang\ needed)
   # --------------------------------------------------------------------------
   release:
     name: Release asset

@@ -206,8 +206,9 @@ jobs:
           if (-not (Get-Command $msbuild -ErrorAction SilentlyContinue)) {
             $env:PATH = "$(Split-Path $msbuild -Parent);$env:PATH"
           }
+          # 解决方案层级的平台名是 x64 / x86（x86 映射到工程的 Win32）
           foreach ($cfg in 'Debug', 'Release') {
-            foreach ($plat in 'x64', 'Win32') {
+            foreach ($plat in 'x64', 'x86') {
               Write-Host "=== $cfg|$plat ==="
               & $msbuild LiteView.sln /nologo /m /v:minimal `
                 /p:Configuration=$cfg /p:Platform=$plat /p:PlatformToolset=$toolset

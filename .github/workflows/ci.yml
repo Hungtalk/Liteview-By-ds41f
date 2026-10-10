@@ -49,19 +49,23 @@ jobs:
         shell: bash
         run: |
           set -e
+          # 语言包实现：优先内嵌生成物，缺失时用占位实现（与 tests/run_all.sh 同规则）
+          PACK_SRC=src/lang_packs_generated.cpp
+          [ -f "$PACK_SRC" ] || PACK_SRC=src/lang_packs_stub.cpp
+          echo "pack source: $PACK_SRC"
+          # codec_*.cpp 通过 tr()/trf() 输出本地化信息，因此 i18n 必须一起链接
           CXX="g++ -std=c++17 -O2 -Isrc"
+          $CXX src/util.cpp src/i18n.cpp "$PACK_SRC" tests/i18n_tool.cpp -o i18n_tool
           if [ "$RUNNER_OS" = "Windows" ]; then
-            # Windows runner 自带 WinLibs/msys 的 g++；这里只编译 i18n 相关文件
-            $CXX src/util.cpp src/i18n.cpp src/lang_packs_generated.cpp \
+            # Windows runner 自带 mingw g++（WinLibs）；内嵌测试需要真实 exe
+            $CXX src/util.cpp src/i18n.cpp "$PACK_SRC" \
               tests/i18n_embed_test.cpp -o i18n_embed_test.exe
           else
-            $CXX src/util.cpp src/i18n.cpp tests/i18n_tool.cpp -o i18n_tool
-            $CXX src/util.cpp src/i18n.cpp src/lang_packs_generated.cpp \
+            $CXX src/util.cpp src/i18n.cpp "$PACK_SRC" \
               tests/i18n_tool.cpp -o i18n_tool_embedded
           fi
 
       - name: Validate every language pack (100% coverage required)
-        if: runner.os != 'Windows'
         shell: bash
         run: |
           set -e
@@ -103,8 +107,10 @@ jobs:
 
       - name: Build decoder test harness
         run: |
+          # codec_*.cpp 调用 tr()/trf()，因此链接时必须带上 i18n.cpp 与一个语言包实现
           g++ -std=c++17 -O2 -Isrc \
-            src/util.cpp src/image.cpp src/inflate.cpp src/codec.cpp \
+            src/util.cpp src/i18n.cpp src/lang_packs_generated.cpp \
+            src/image.cpp src/inflate.cpp src/codec.cpp \
             src/codec_bmp.cpp src/codec_png.cpp src/codec_gif.cpp src/codec_jpeg.cpp \
             tests/dec_main.cpp -o tests/dec_main
 
@@ -130,7 +136,8 @@ jobs:
         run: |
           python make_exif_jpeg.py
           g++ -std=c++17 -O2 -I../src \
-            ../src/util.cpp ../src/image.cpp ../src/inflate.cpp ../src/codec.cpp \
+            ../src/util.cpp ../src/i18n.cpp ../src/lang_packs_generated.cpp \
+            ../src/image.cpp ../src/inflate.cpp ../src/codec.cpp \
             ../src/codec_bmp.cpp ../src/codec_png.cpp ../src/codec_gif.cpp ../src/codec_jpeg.cpp \
             orient_test.cpp -o orient_test
           mkdir -p of
@@ -163,13 +170,20 @@ jobs:
         id: toolset
         shell: pwsh
         run: |
-          $found = Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio\*\VC\Tools\MSVC" `
-                   -Directory -ErrorAction SilentlyContinue |
+          # VC 工具集可能装在任意盘符（windows-latest 实测在 D:\Program Files\...），
+          # 因此先让 vswhere 给出安装根目录，再在它下面找 MSVC 版本目录
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          if (-not $vs) { throw "Visual Studio with C++ tools not found" }
+          $found = Get-ChildItem "$vs\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue |
                    Sort-Object Name -Descending | Select-Object -First 1
-          if (-not $found) { throw "no VC toolset found" }
-          # 14.4x -> v143, 14.5x -> v145 ...
+          if (-not $found) { throw "no VC toolset under $vs" }
+          # 14.4x -> v143 (VS2022), 14.5x -> v145 (VS2026)
           $minor = [int](($found.Name -split '\.')[1])
           $toolset = if ($minor -ge 5) { 'v145' } else { 'v143' }
+          Write-Host "VS: $vs"
           Write-Host "VC $($found.Name) -> $toolset"
           "value=$toolset" >> $env:GITHUB_OUTPUT
 
@@ -233,9 +247,11 @@ jobs:
           $vs = & $vswhere -latest -products * `
             -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
             -property installationPath
+          if (-not $vs) { throw "Visual Studio with C++ tools not found" }
           "MSBUILD=$vs\MSBuild\Current\Bin\MSBuild.exe" >> $env:GITHUB_ENV
-          $found = Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio\*\VC\Tools\MSVC" `
-                   -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          $found = Get-ChildItem "$vs\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue |
+                   Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $found) { throw "no VC toolset under $vs" }
           $minor = [int](($found.Name -split '\.')[1])
           $toolset = if ($minor -ge 5) { 'v145' } else { 'v143' }
           "TOOLSET=$toolset" >> $env:GITHUB_ENV

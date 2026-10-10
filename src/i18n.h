@@ -3,8 +3,10 @@
 //
 //  设计：
 //   * 程序内置英文文案（LITEVIEW_STRINGS 表）——缺包/缺条目时的回退文本；
-//   * 中文等其它语言放在 exe 同目录 lang\<code>.csv（或
-//     %LOCALAPPDATA%\LiteView\lang），启动时按系统语言自动选择；
+//   * 中文 / 日文等语言包在构建期被编译进 exe（见 i18n_embedded.h 与
+//     tools/embed_lang.py），因此默认“单文件即可显示多语言”；
+//   * 磁盘上的 lang\<code>.csv（exe 同目录，或 %LOCALAPPDATA%\LiteView\lang）
+//     仍然支持，且优先级高于内嵌包，便于不重新编译就替换/新增译文；
 //   * 支持运行时切换（设置面板 → 语言），设置保存到 INI 的
 //     [general] language（auto = 跟随系统）。
 //
@@ -202,8 +204,13 @@ std::wstring trf(Sid id, ...);
 struct LangPack {
     std::wstring code;    // 语言代码（文件名去 .csv），如 "zh-CN"
     std::wstring name;    // 显示名（"# name:" 声明或等于 code）
-    std::wstring path;    // 完整路径
+    std::wstring path;    // 完整路径；内嵌包为 kEmbeddedPrefix + 代码
 };
+
+// 内嵌语言包的虚拟路径前缀（不是真实文件路径）；
+// 传回 i18n_load_file() 时会从内存加载。
+extern const wchar_t* const kEmbeddedPrefix;
+bool i18n_is_embedded_path(const std::wstring& path);
 
 // 启动 / 切换：preferred 为 "auto" 或空 = 按系统语言；否则为语言代码。
 // 找不到对应语言包时回退内置英文（并尽力加载 en 语言包）。
@@ -214,7 +221,8 @@ std::wstring i18n_system_code();                 // 系统语言代码（如 "zh
 const std::wstring& i18n_current_code();         // 当前生效代码（内置英文为 "en"）
 const std::wstring& i18n_current_name();         // 当前语言显示名
 std::wstring i18n_lang_dir();                    // 主语言包目录（exe\lang）
-std::vector<LangPack> i18n_available_packs();    // 扫描 exe\lang 与用户目录 lang，按代码排序
+// 可选语言列表：exe\lang → 用户目录 lang → 内嵌包（去重时先出现者优先），按代码排序
+std::vector<LangPack> i18n_available_packs();
 
 // ---------------------------------------------------------------------------
 // 工具 / 测试接口（语言包校验、模板导出；供 tests/i18n_tool 使用）
@@ -231,3 +239,9 @@ void           i18n_reset_overrides();           // 清空已加载的覆盖（�
 bool i18n_load_file(const std::wstring& path,
                     std::wstring* nameOut = nullptr,
                     std::vector<std::string>* unknownKeys = nullptr);
+
+// 从内存中的 UTF-8 语言包文本加载（内容格式与 .csv 完全一致，可带 BOM）。
+// 内嵌语言包（i18n_embedded.h）与测试都走这里。
+bool i18n_load_memory(const void* data, size_t size,
+                      std::wstring* nameOut = nullptr,
+                      std::vector<std::string>* unknownKeys = nullptr);

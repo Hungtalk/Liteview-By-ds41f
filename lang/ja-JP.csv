@@ -1,0 +1,142 @@
+# LiteView language pack / 言語パック：日本語（ja-JP）
+# 形式: key,english,translation（UTF-8；translation が空 = 組み込み英語を使用）
+# プレースホルダー（%d %s など）は英語と一致させる必要があります；\n = 改行、\t = タブ、\\ = バックスラッシュ
+# name: 日本語
+key,english,translation
+app_title,LiteView Image Viewer,LiteView 画像ビューア
+tip_open,Open image (O),画像を開く（O）
+tip_prev,Previous image (←),前の画像（←）
+tip_next,Next image (→),次の画像（→）
+tip_zoom_out,Zoom out (- / wheel),縮小（- / ホイール）
+tip_zoom_in,Zoom in (+ / wheel),拡大（+ / ホイール）
+tip_fit,Fit to window (0),ウィンドウに合わせる（0）
+tip_actual,Actual size 1:1 (1),元のサイズ 1:1（1）
+tip_rot_ccw,Rotate counter-clockwise (Shift+R),反時計回りに回転（Shift+R）
+tip_rot_cw,Rotate clockwise (R),時計回りに回転（R）
+tip_slide,Slideshow (Space),スライドショー（Space）
+tip_fullscreen,Fullscreen (F11),全画面表示（F11）
+tip_settings,Settings (Tab),設定（Tab）
+status_loading,Loading…,読み込み中…
+status_no_image,"No image open — press O to choose an image, or drag one into the window",画像が開かれていません — O を押して画像を選ぶか、ウィンドウにドラッグしてください
+status_frames,"   %d frames (GIF)","   %d フレーム（GIF）"
+status_slideshow,"   Slideshow playing","   スライドショー再生中"
+empty_hint_line1,"Drag an image here, or press O to open one",ここに画像をドラッグするか、O を押して開いてください
+empty_hint_line2,"Supports JPG / PNG / GIF / BMP — built-in decoders, no system components",JPG / PNG / GIF / BMP に対応 — 独自デコーダー内蔵、システムコンポーネント不要
+info_path,"Path:  ","パス:  "
+info_size,Size:  %d × %d        Format:  %s        File:  %s,サイズ:  %d × %d        形式:  %s        ファイル:  %s
+info_zoom,Zoom:  %d%%        Viewport:  %d × %d,ズーム:  %d%%        表示領域:  %d × %d
+info_gif_frames,GIF frames:  %d (showing first frame),GIF フレーム数:  %d（先頭フレームを表示中）
+info_camera,"Camera:  ","カメラ:  "
+info_date,"Date taken:  ","撮影日時:  "
+info_shutter,"Shutter ","シャッター "
+info_aperture,"Aperture ","絞り "
+info_focal,"Focal length ","焦点距離 "
+info_exif_orientation,EXIF orientation:  %d (auto-corrected),EXIF の向き:  %d（自動補正済み）
+info_close_hint,Press I or click anywhere to close,I を押すか、任意の場所をクリックして閉じます
+panel_this_pc,This PC,PC
+panel_open_title,Open image,画像を開く
+panel_back_hint,This PC (click title to go back),PC（タイトルをクリックして戻る）
+panel_no_files,(No image files),（画像ファイルがありません）
+panel_key_hint,Double-click/Enter open · Backspace up · Esc close,ダブルクリック/Enter で開く · Backspace で上へ · Esc で閉じる
+toast_cannot_open_dir,Cannot open folder,フォルダーを開けません
+toast_only_one,Only one image in this folder,このフォルダーには 1 枚しか画像がありません
+toast_last,Already at the last image,すでに最後の画像です
+toast_first,Already at the first image,すでに最初の画像です
+toast_no_file,File does not exist,ファイルが存在しません
+toast_cannot_open,Cannot open: %s,開けません: %s
+toast_assoc_off,File association removed,ファイルの関連付けを解除しました
+toast_assoc_on,"Registered: LiteView is available in ""Open with""",登録しました：「プログラムから開く」で LiteView を選択できます
+toast_assoc_fail,Registration failed,登録に失敗しました
+toast_defaults_restored,Defaults restored,既定の設定に戻しました
+settings_title,Settings,設定
+settings_bg,Background color,背景色
+settings_bg_black,Black,黒
+settings_bg_dark,Dark gray,濃いグレー
+settings_bg_light,Light gray,薄いグレー
+settings_bg_white,White,白
+settings_fit_on_open,Zoom when opening an image,画像を開いたときのズーム
+settings_fit,Fit to window,ウィンドウに合わせる
+settings_actual,Actual size,元のサイズ
+settings_fit_last,Remember last,前回の設定を記憶
+settings_interp,Zoom interpolation (above 100%),拡大時の補間（100% 超）
+settings_interp_smooth,Smooth (bilinear),滑らか（バイリニア）
+settings_interp_sharp,Sharp (nearest),シャープ（最近傍）
+settings_exif_rotate,Auto-correct by EXIF orientation,EXIF の向きで自動補正
+settings_slide_interval,Slideshow interval,スライドショーの間隔
+settings_slide_loop,Slideshow loop,スライドショーを繰り返す
+settings_remember_dir,Remember last folder,前回のフォルダーを記憶
+settings_maximized,Start maximized,起動時に最大化
+settings_topmost,Always on top,常に最前面
+settings_loop_files,Loop after last image,最後の画像の後で先頭に戻る
+settings_language,Language,言語
+settings_language_auto,Auto (follow system),自動（システムに従う）
+settings_language_en,English,英語
+settings_assoc,"File association (add to ""Open with"")",ファイルの関連付け（「プログラムから開く」に追加）
+settings_assoc_on,Registered · click to remove,登録済み · クリックで解除
+settings_assoc_off,Not registered · click to register,未登録 · クリックで登録
+settings_reset,Reset to defaults,既定の設定に戻す
+settings_close,Close settings,設定を閉じる
+settings_footer,Click a row to change · Settings saved to %s,項目をクリックして変更 · 設定は %s に保存されます
+settings_on,On,オン
+settings_off,Off,オフ
+settings_seconds,%d s,%d 秒
+cli_assoc_registered,"File association registered.\n\nTip: On Windows 10/11, to set it as the default app, confirm via\n""Open with → Choose another app → LiteView → Always use"".",ファイルの関連付けを登録しました。\n\nヒント: Windows 10/11 で既定のアプリに設定するには、\n「プログラムから開く → 別のアプリを選ぶ → LiteView → 常に使用する」で確定してください。
+cli_assoc_removed,File association removed.,ファイルの関連付けを解除しました。
+cli_operation_failed,Operation failed,操作に失敗しました
+assoc_friendly_name,LiteView Image,LiteView 画像
+err_assoc_progid,Failed to write ProgID,ProgID の書き込みに失敗しました
+err_assoc_default,Failed to set the default association (possibly restricted by policy),既定の関連付けの設定に失敗しました（ポリシーで制限されている可能性があります）
+err_assoc_windows_only,Windows only,Windows のみ対応
+err_file_too_small,File too small to be a valid image,ファイルが小さすぎて有効な画像ではありません
+err_unsupported_format,Unsupported image format (supported: BMP / PNG / JPEG / GIF),対応していない画像形式です（対応: BMP / PNG / JPEG / GIF）
+err_bmp_header,Corrupt BMP file header,BMP ファイルヘッダーが壊れています
+err_bmp_version,Unsupported BMP version,対応していない BMP バージョンです
+err_bmp_masks,Missing BMP color masks,BMP のカラーマスクがありません
+err_bmp_size,Invalid or oversized BMP dimensions,BMP のサイズが不正か大きすぎます
+err_bmp_bpp,Unsupported BMP bit depth,対応していない BMP ビット深度です
+err_bmp_compression,Unsupported BMP compression,対応していない BMP 圧縮方式です
+err_bmp_palette,BMP palette out of bounds,BMP パレットが範囲外です
+err_bmp_rle_bpp,Invalid BMP RLE bit depth,BMP RLE のビット深度が不正です
+err_bmp_no_pixels,Missing BMP pixel data,BMP のピクセルデータがありません
+err_bmp_pixels_incomplete,Incomplete BMP pixel data,BMP のピクセルデータが不完全です
+err_gif_not_gif,Not a GIF file,GIF ファイルではありません
+err_gif_size,Invalid or oversized GIF dimensions,GIF のサイズが不正か大きすぎます
+err_gif_palette,GIF palette out of bounds,GIF パレットが範囲外です
+err_gif_corrupt,Corrupt GIF data,GIF データが壊れています
+err_gif_pixels_incomplete,Incomplete GIF pixel data,GIF のピクセルデータが不完全です
+err_gif_block,Corrupt GIF image block,GIF の画像ブロックが壊れています
+err_gif_incomplete,Incomplete GIF data,GIF データが不完全です
+err_jpeg_no_frame,JPEG is missing its frame header,JPEG にフレームヘッダーがありません
+err_jpeg_cmyk,CMYK/YCCK color JPEG is not supported,CMYK/YCCK のカラー JPEG には対応していません
+err_jpeg_components,Unexpected JPEG component count,JPEG のコンポーネント数が異常です
+err_jpeg_not_jpeg,Not a JPEG file,JPEG ファイルではありません
+err_jpeg_structure,Corrupt JPEG structure,JPEG の構造が壊れています
+err_jpeg_scan,Corrupt JPEG scan data,JPEG のスキャンデータが壊れています
+err_jpeg_dqt,Corrupt JPEG quantization table,JPEG の量子化テーブルが壊れています
+err_jpeg_dht,Corrupt JPEG Huffman table,JPEG のハフマンテーブルが壊れています
+err_jpeg_sof,Unsupported or corrupt JPEG frame header,JPEG のフレームヘッダーが未対応か壊れています
+err_jpeg_dri,Corrupt JPEG DRI segment,JPEG の DRI セグメントが壊れています
+err_jpeg_app1,Corrupt JPEG APP1 segment,JPEG の APP1 セグメントが壊れています
+err_jpeg_feature,Unsupported JPEG feature,対応していない JPEG 機能です
+err_jpeg_incomplete,Incomplete JPEG data,JPEG データが不完全です
+err_png_not_png,Not a PNG file,PNG ファイルではありません
+err_png_ihdr,Corrupt PNG IHDR,PNG の IHDR が壊れています
+err_png_crc,PNG data check failed (CRC),PNG のデータ検証に失敗しました（CRC）
+err_png_feature,Unsupported PNG feature,対応していない PNG 機能です
+err_png_depth,Invalid PNG bit depth / color type,PNG のビット深度/色種別が不正です
+err_png_size,Invalid or oversized PNG dimensions,PNG のサイズが不正か大きすぎます
+err_png_incomplete,Incomplete PNG data,PNG データが不完全です
+err_png_uncompress,PNG decompression failed: %s,PNG の展開に失敗しました: %s
+err_png_pixels_incomplete,Incomplete PNG pixel data,PNG のピクセルデータが不完全です
+err_png_filter,Invalid PNG row filter type,PNG の行フィルター種別が不正です
+err_zlib_short,zlib data too short,zlib データが短すぎます
+err_zlib_not_deflate,Not deflate-compressed data,deflate 圧縮されたデータではありません
+err_zlib_window,Invalid zlib window size,zlib のウィンドウサイズが不正です
+err_zlib_header,zlib header check failed,zlib のヘッダー検証に失敗しました
+err_zlib_dictionary,Preset dictionary not supported,プリセット辞書には対応していません
+err_zlib_corrupt,Corrupt DEFLATE data,DEFLATE データが壊れています
+err_zlib_adler,adler32 checksum failed,adler32 チェックサムに失敗しました
+err_file_open,Cannot open file,ファイルを開けません
+err_file_size,Cannot determine file size,ファイルサイズを取得できません
+err_file_too_big,File too large (over 2 GB),ファイルが大きすぎます（2 GB 超）
+err_file_read,Failed to read file,ファイルの読み込みに失敗しました

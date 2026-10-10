@@ -10,5 +10,7 @@ tests/dec_main
 tests/dec_dbg
 tests/orient_test
 tests/i18n_tool
+tests/i18n_tool_embedded
+tests/i18n_embed_test
 tests/samples/
 tests/of/

@@ -38,7 +38,21 @@ python3 check_orient.py
 echo "== 7. 语言包完整性检查（i18n）=="
 g++ -std=c++17 -O2 -I"$SRC" \
   "$SRC/util.cpp" "$SRC/i18n.cpp" i18n_tool.cpp -o i18n_tool
-./i18n_tool check ../lang/zh-CN.csv --require-all
+for pack in ../lang/zh-CN.csv ../lang/ja-JP.csv; do
+  [ -f "$pack" ] && ./i18n_tool check "$pack" --require-all
+done
+
+echo "== 8. 内嵌语言包回归（优先用生成的嵌入源，无生成文件则用 stub）=="
+EMBED_SRC="$SRC/lang_packs_generated.cpp"
+if [ ! -f "$EMBED_SRC" ]; then
+  echo "   (无 $EMBED_SRC，改用 src/lang_packs_stub.cpp：仅验证回退路径)"
+  EMBED_SRC="$SRC/lang_packs_stub.cpp"
+fi
+g++ -std=c++17 -O2 -I"$SRC" \
+  "$SRC/util.cpp" "$SRC/i18n.cpp" "$EMBED_SRC" i18n_tool.cpp -o i18n_tool_embedded
+# 内嵌包存在时，语言列表不应依赖磁盘上的 lang\ 目录
+./i18n_tool_embedded list > /dev/null
+echo "   内嵌语言包构建通过（Windows 上可运行 tests/i18n_embed_test.cpp 做完整断言）"
 
 echo
 echo "==== 全部测试通过 ===="

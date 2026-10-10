@@ -154,6 +154,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # windows runner 上默认没有 python 命令（且 WindowsApps 的商店存根不可用），
+      # 而 tools/embed_lang.py 需要它来生成内嵌语言包
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Locate MSBuild
         id: vs
         shell: pwsh
@@ -196,6 +202,10 @@ jobs:
         run: |
           $msbuild = "${{ steps.vs.outputs.msbuild }}"
           $toolset = "${{ steps.toolset.outputs.value }}"
+          # 某些镜像上 MSBuild 未加入 PATH（运行时才最可靠）
+          if (-not (Get-Command $msbuild -ErrorAction SilentlyContinue)) {
+            $env:PATH = "$(Split-Path $msbuild -Parent);$env:PATH"
+          }
           foreach ($cfg in 'Debug', 'Release') {
             foreach ($plat in 'x64', 'Win32') {
               Write-Host "=== $cfg|$plat ==="

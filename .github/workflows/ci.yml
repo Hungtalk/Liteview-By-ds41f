@@ -1,0 +1,255 @@
+# ============================================================================
+#  LiteView CI
+#
+#  设计原则：CI 步骤与 README「测试（可选）」以及 docs/development.md 中记录的
+#  本地命令保持一致 —— 本地怎么跑，CI 就怎么跑，便于复现失败。
+#
+#  作业：
+#    i18n    (ubuntu) 语言包校验 + 内嵌语言包回归测试（快，先跑）
+#    decode  (ubuntu) 解码器逐像素对照（Pillow；djpeg 可选）
+#    msbuild (windows) MSVC Release x64 真实构建（含内嵌语言包）
+#    release (windows, 仅 tag) 构建并上传可执行文件
+#
+#  注意：LiteView.vcxproj 里 PlatformToolset 写死为 v145（VS2026）。CI runner
+#  的工具集版本会变，因此这里用 /p:PlatformToolset= 按实际安装版本覆盖，
+#  而不是改动仓库里的工程文件。
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 语言包：CSV 完整性 + 内嵌包运行时行为（不需要图形界面）
+  # --------------------------------------------------------------------------
+  i18n:
+    name: i18n checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile checker + tester
+        shell: bash
+        run: |
+          set -e
+          CXX="g++ -std=c++17 -O2 -Isrc"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # Windows runner 自带 WinLibs/msys 的 g++；这里只编译 i18n 相关文件
+            $CXX src/util.cpp src/i18n.cpp src/lang_packs_generated.cpp \
+              tests/i18n_embed_test.cpp -o i18n_embed_test.exe
+          else
+            $CXX src/util.cpp src/i18n.cpp tests/i18n_tool.cpp -o i18n_tool
+            $CXX src/util.cpp src/i18n.cpp src/lang_packs_generated.cpp \
+              tests/i18n_tool.cpp -o i18n_tool_embedded
+          fi
+
+      - name: Validate every language pack (100% coverage required)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -e
+          for pack in lang/*.csv; do
+            case "$(basename "$pack")" in template.csv) continue ;; esac
+            ./i18n_tool check "$pack" --require-all
+          done
+
+      - name: Embedded pack test on Windows (real runtime path/priority rules)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: ./i18n_embed_test.exe
+
+      - name: Embedded pack build smoke test (Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: ./i18n_tool_embedded list > /dev/null && echo "embedded build OK"
+
+  # --------------------------------------------------------------------------
+  # 解码器：与 Pillow 逐像素对照（无损格式零差异），djpeg 存在时再做严格对照
+  # --------------------------------------------------------------------------
+  decode:
+    name: decoder pixel comparison
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libjpeg-turbo-progs
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet pillow
+
+      - name: Build decoder test harness
+        run: |
+          g++ -std=c++17 -O2 -Isrc \
+            src/util.cpp src/image.cpp src/inflate.cpp src/codec.cpp \
+            src/codec_bmp.cpp src/codec_png.cpp src/codec_gif.cpp src/codec_jpeg.cpp \
+            tests/dec_main.cpp -o tests/dec_main
+
+      - name: Generate sample images
+        working-directory: tests
+        run: python gen_images.py > /dev/null
+
+      - name: Pixel comparison vs Pillow
+        working-directory: tests
+        run: python compare.py
+
+      - name: Strict comparison vs djpeg -nosmooth
+        working-directory: tests
+        run: |
+          if ! command -v djpeg > /dev/null; then
+            echo "djpeg not available - skipping (mirror/package issue)"
+            exit 0
+          fi
+          python compare_djpeg.py
+
+      - name: EXIF parsing and 8 orientation transforms
+        working-directory: tests
+        run: |
+          python make_exif_jpeg.py
+          g++ -std=c++17 -O2 -I../src \
+            ../src/util.cpp ../src/image.cpp ../src/inflate.cpp ../src/codec.cpp \
+            ../src/codec_bmp.cpp ../src/codec_png.cpp ../src/codec_gif.cpp ../src/codec_jpeg.cpp \
+            orient_test.cpp -o orient_test
+          mkdir -p of
+          ./orient_test of > /dev/null
+          python check_orient.py
+
+  # --------------------------------------------------------------------------
+  # MSVC 真实构建（Windows）：确保工程文件在干净环境下也能构建
+  # --------------------------------------------------------------------------
+  msbuild:
+    name: MSVC Release x64
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate MSBuild
+        id: vs
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $path = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          if (-not $path) { throw "Visual Studio with C++ tools not found" }
+          "msbuild=$path\MSBuild\Current\Bin\MSBuild.exe" >> $env:GITHUB_OUTPUT
+          Write-Host "VS: $path"
+
+      - name: Detect installed platform toolset
+        id: toolset
+        shell: pwsh
+        run: |
+          $found = Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio\*\VC\Tools\MSVC" `
+                   -Directory -ErrorAction SilentlyContinue |
+                   Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $found) { throw "no VC toolset found" }
+          # 14.4x -> v143, 14.5x -> v145 ...
+          $minor = [int](($found.Name -split '\.')[1])
+          $toolset = if ($minor -ge 5) { 'v145' } else { 'v143' }
+          Write-Host "VC $($found.Name) -> $toolset"
+          "value=$toolset" >> $env:GITHUB_OUTPUT
+
+      - name: Generate embedded language packs
+        shell: pwsh
+        run: python tools/embed_lang.py
+
+      - name: Build all four configurations
+        shell: pwsh
+        run: |
+          $msbuild = "${{ steps.vs.outputs.msbuild }}"
+          $toolset = "${{ steps.toolset.outputs.value }}"
+          foreach ($cfg in 'Debug', 'Release') {
+            foreach ($plat in 'x64', 'Win32') {
+              Write-Host "=== $cfg|$plat ==="
+              & $msbuild LiteView.sln /nologo /m /v:minimal `
+                /p:Configuration=$cfg /p:Platform=$plat /p:PlatformToolset=$toolset
+              if ($LASTEXITCODE -ne 0) { throw "build failed: $cfg|$plat" }
+            }
+          }
+
+      - name: Verify the exe carries embedded language packs
+        shell: pwsh
+        run: |
+          $exe = 'x64\Release\LiteView.exe'
+          if (-not (Test-Path $exe)) { throw "$exe not found" }
+          $size = (Get-Item $exe).Length
+          Write-Host "LiteView.exe = $size bytes"
+          # 语言包内嵌的判据：exe 中存在语言包文件名与 "# name:" 元数据字节
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $text = [System.Text.Encoding]::UTF8.GetString($bytes)
+          foreach ($needle in 'ja-JP.csv', 'zh-CN.csv', '# name:') {
+            if ($text -notlike "*$needle*") { throw "embedded pack data missing: $needle" }
+          }
+          Write-Host "embedded pack data found"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LiteView-x64-Release
+          path: x64/Release/LiteView.exe
+          if-no-files-found: error
+
+  # --------------------------------------------------------------------------
+  # 打 tag 时发布单文件 exe（语言包已内嵌，无需附带 lang\ 目录）
+  # --------------------------------------------------------------------------
+  release:
+    name: Release asset
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [i18n, decode, msbuild]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate MSBuild and toolset
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          "MSBUILD=$vs\MSBuild\Current\Bin\MSBuild.exe" >> $env:GITHUB_ENV
+          $found = Get-ChildItem "${env:ProgramFiles}\Microsoft Visual Studio\*\VC\Tools\MSVC" `
+                   -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          $minor = [int](($found.Name -split '\.')[1])
+          $toolset = if ($minor -ge 5) { 'v145' } else { 'v143' }
+          "TOOLSET=$toolset" >> $env:GITHUB_ENV
+
+      - name: Build Release x64
+        shell: pwsh
+        run: |
+          python tools/embed_lang.py
+          & $env:MSBUILD LiteView.sln /nologo /m /v:minimal `
+            /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=$env:TOOLSET
+          if ($LASTEXITCODE -ne 0) { throw "release build failed" }
+          Copy-Item x64\Release\LiteView.exe LiteView-${{ github.ref_name }}-x64.exe
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: LiteView-*-x64.exe
+          generate_release_notes: true

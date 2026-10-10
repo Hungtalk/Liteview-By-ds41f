@@ -22,6 +22,16 @@ import os
 import re
 import sys
 
+# 语言包显示名含非 ASCII（日本語 / 中文（简体）…），而 Windows 控制台默认代码页
+# 可能是 cp1252/cp936，直接 print 会抛 UnicodeEncodeError 并中断构建。
+# 这里在脚本级把标准输出切到 UTF-8 且不可编码字符降级为转义，保证构建不因
+# “打印日志” 失败。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding='utf-8', errors='backslashreplace')
+    except (AttributeError, ValueError):
+        pass
+
 # LITEVIEW_STRINGS 中的 X(key, L"English") 行
 X_RE = re.compile(r'^\s*X\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,', re.MULTILINE)
 # 非 ASCII 且非空白的字符（用于 warning）

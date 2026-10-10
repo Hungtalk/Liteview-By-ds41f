@@ -1,11 +1,18 @@
 build/
 x64/
 Win32/
+# MSVC 的输出目录：解决方案平台为 x86 时落在 Debug\ / Release\（工程内为 Win32），
+# LiteView\ 为 VS 的 IntelliSense/IPCH 中间目录
+Debug/
+Release/
+LiteView/
 .vs/
 *.user
 *.o
 *.obj
 *.pdb
+*.ilk
+*.tlog
 tests/dec_main
 tests/dec_dbg
 tests/orient_test

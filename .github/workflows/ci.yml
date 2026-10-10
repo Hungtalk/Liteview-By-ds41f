@@ -8,7 +8,7 @@
 #    i18n    (ubuntu + windows) language pack validation + embedded pack regression
 #    decode  (ubuntu)           decoder pixel comparison (Pillow; djpeg optional)
 #    msbuild (windows)          real MSVC build of all four configurations
-#    release (windows, tags)    build and publish a single-file exe
+#    release (tag "alpha" or v*, windows) builds x64 + x86 and publishes a prerelease
 #
 #  Note: LiteView.vcxproj pins PlatformToolset to v145 (VS2026). Hosted runners
 #  change toolset versions over time, so CI overrides it with
@@ -16,14 +16,15 @@
 #
 #  Keep every inline script ASCII-only: the runner materialises `run:` blocks into
 #  temporary script files that are read using the ANSI code page, so non-ASCII
-#  content inside them is not reliable.
+#  content inside them is not reliable. Non-ASCII release text is built from
+#  escape sequences in github-script, never written literally into the YAML.
 # ============================================================================
 name: CI
 
 on:
   push:
     branches: ['**']
-    tags: ['v*']
+    tags: ['v*', 'alpha']
   pull_request:
   workflow_dispatch:
 
@@ -249,11 +250,15 @@ jobs:
           if-no-files-found: error
 
   # --------------------------------------------------------------------------
-  # Publish a single-file exe on v* tags (packs are embedded, no lang\ needed)
+  # Publish a prerelease on tag "alpha" (or any v* tag):
+  #   * builds every Windows architecture (x64 + x86) - the exe is 32/64-bit
+  #     specific, so both are shipped as separate assets;
+  #   * language packs are embedded, so each asset is a standalone single file;
+  #   * release notes are bilingual (Chinese + English).
   # --------------------------------------------------------------------------
   release:
-    name: Release asset
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Release (prerelease)
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/tags/alpha'
     needs: [i18n, decode, msbuild]
     runs-on: windows-latest
     permissions:
@@ -261,8 +266,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # needed for the automatic release notes
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
       - name: Locate MSBuild and toolset
+        id: vs
         shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -270,24 +282,125 @@ jobs:
             -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
             -property installationPath
           if (-not $vs) { throw "Visual Studio with C++ tools not found" }
-          "MSBUILD=$vs\MSBuild\Current\Bin\MSBuild.exe" >> $env:GITHUB_ENV
           $found = Get-ChildItem "$vs\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue |
                    Sort-Object Name -Descending | Select-Object -First 1
           if (-not $found) { throw "no VC toolset under $vs" }
           $minor = [int](($found.Name -split '\.')[1])
           $toolset = if ($minor -ge 5) { 'v145' } else { 'v143' }
-          "TOOLSET=$toolset" >> $env:GITHUB_ENV
+          "msbuild=$vs\MSBuild\Current\Bin\MSBuild.exe" >> $env:GITHUB_OUTPUT
+          "toolset=$toolset" >> $env:GITHUB_OUTPUT
+          Write-Host "VS: $vs (VC $($found.Name) -> $toolset)"
 
-      - name: Build Release x64
+      - name: Build Windows architectures (x64 + x86)
         shell: pwsh
         run: |
+          $msbuild = "${{ steps.vs.outputs.msbuild }}"
+          $toolset = "${{ steps.vs.outputs.toolset }}"
+          $tag = "${{ github.ref_name }}"
+          if (-not (Get-Command $msbuild -ErrorAction SilentlyContinue)) {
+            $env:PATH = "$(Split-Path $msbuild -Parent);$env:PATH"
+          }
           python tools/embed_lang.py
-          & $env:MSBUILD LiteView.sln /nologo /m /v:minimal `
-            /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=$env:TOOLSET
-          if ($LASTEXITCODE -ne 0) { throw "release build failed" }
-          Copy-Item x64\Release\LiteView.exe LiteView-${{ github.ref_name }}-x64.exe
+          $assets = @()
+          foreach ($plat in 'x64', 'x86') {
+            Write-Host "=== Release|$plat ==="
+            & $msbuild LiteView.sln /nologo /m /v:minimal `
+              /p:Configuration=Release /p:Platform=$plat /p:PlatformToolset=$toolset
+            if ($LASTEXITCODE -ne 0) { throw "release build failed for $plat" }
+            # x64 -> x64\Release, x86 -> Release (project platform Win32)
+            $src = if ($plat -eq 'x64') { 'x64\Release\LiteView.exe' } else { 'Release\LiteView.exe' }
+            if (-not (Test-Path $src)) { throw "$src not found" }
+            $dst = "LiteView-$tag-$plat.exe"
+            Copy-Item $src $dst -Force
+            $assets += $dst
+            Write-Host "$dst <- $src ($((Get-Item $dst).Length) bytes)"
+          }
+          # Checksums so users can verify the downloads
+          foreach ($f in $assets) {
+            $hash = (Get-FileHash $f -Algorithm SHA256).Hash.ToLower()
+            "$hash  $f" | Out-File -Append -Encoding ascii SHA256SUMS.txt
+          }
+          Get-Content SHA256SUMS.txt
+          "ASSETS=$($assets -join ',')" >> $env:GITHUB_ENV
 
-      - uses: softprops/action-gh-release@v2
+      - name: Compose bilingual release notes
+        uses: actions/github-script@v7
         with:
-          files: LiteView-*-x64.exe
-          generate_release_notes: true
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            // Non-ASCII is built from escapes so this YAML stays ASCII-only.
+            const zhTitle = '\u4e2d\u6587';
+            const enTitle = 'English';
+            const zhIntro = [
+              '> \u8fd9\u662f\u4e00\u4e2a **Alpha \u9884\u53d1\u5e03\u7248**\uff08pre-release\uff09\uff0c\u529f\u80fd\u4e0e\u63a5\u53e3\u4ecd\u53ef\u80fd\u53d8\u52a8\u3002',
+              '',
+              '**\u672c\u6b21\u91cd\u70b9**',
+              '',
+              '- \u8bed\u8a00\u5305\u76f4\u63a5**\u7f16\u8bd1\u8fdb exe**\uff1a\u5355\u6587\u4ef6\u5373\u53ef\u663e\u793a\u591a\u8bed\u8a00\uff0c\u4e0d\u518d\u9700\u8981\u968f\u5305\u7a0b\u5e8f\u9644\u5e26 `lang\\` \u76ee\u5f55\uff1b',
+              '- \u65b0\u589e**\u65e5\u8bed**\u8bed\u8a00\u5305\uff08\u65e5\u672c\u8a9e\uff09\uff0c\u4e0e\u7b80\u4f53\u4e2d\u6587\u4e00\u5e76\u5185\u7f6e\uff1b',
+              '- \u4fee\u590d\u65e5\u8bed Windows \u4e0b\u8bed\u8a00\u81ea\u52a8\u9009\u62e9\u5931\u6548\u7684\u95ee\u9898\uff08\u7cfb\u7edf\u8fd4\u56de `ja`\uff0c\u800c\u8bed\u8a00\u5305\u540d\u4e3a `ja-JP`\uff09\uff1b',
+              '- \u540c\u65f6\u63d0\u4f9b **x64 \u4e0e x86**\uff0832 \u4f4d\uff09\u4e24\u79cd Windows \u6784\u5efa\uff1b',
+              '- \u5916\u7f6e `lang\\<code>.csv` \u4ecd\u53ef\u8986\u76d6\u5185\u7f6e\u8bd1\u6587\uff0c\u4e0d\u9700\u91cd\u65b0\u7f16\u8bd1\u3002',
+              '',
+              '**\u4e0b\u8f7d**',
+              '',
+              '| \u6587\u4ef6 | \u8bf4\u660e |',
+              '| --- | --- |',
+              '| `LiteView-' + tag + '-x64.exe` | 64 \u4f4d Windows\uff08\u63a8\u8350\uff09|',
+              '| `LiteView-' + tag + '-x86.exe` | 32 \u4f4d Windows / \u517c\u5bb9\u65e7\u7cfb\u7edf |',
+              '| `SHA256SUMS.txt` | \u4e0a\u8ff0\u6587\u4ef6\u7684 SHA-256 \u6821\u9a8c\u503c |',
+              '',
+              '\u65e0\u9700\u5b89\u88c5\uff1a\u76f4\u63a5\u8fd0\u884c\u5355\u4e2a exe \u5373\u53ef\uff1b\u8bbe\u7f6e\u5b58\u5728 `LiteView.ini`\uff08\u7a0b\u5e8f\u76ee\u5f55\u4f18\u5148\uff09\u3002'
+            ].join('\n');
+            const enIntro = [
+              '> This is an **Alpha pre-release**: features and interfaces may still change.',
+              '',
+              '**Highlights**',
+              '',
+              '- Language packs are now **compiled into the exe**: a single file is already multilingual, no `lang\\` folder needs to ship with it;',
+              '- Added a **Japanese** pack (\u65e5\u672c\u8a9e) alongside Simplified Chinese;',
+              '- Fixed automatic language selection on Japanese Windows (the system reports `ja` while the pack is named `ja-JP`);',
+              '- Both **x64 and x86** (32-bit) Windows builds are provided;',
+              '- An external `lang\\<code>.csv` still overrides the embedded translation without rebuilding.',
+              '',
+              '**Downloads**',
+              '',
+              '| File | Notes |',
+              '| --- | --- |',
+              '| `LiteView-' + tag + '-x64.exe` | 64-bit Windows (recommended) |',
+              '| `LiteView-' + tag + '-x86.exe` | 32-bit Windows / older systems |',
+              '| `SHA256SUMS.txt` | SHA-256 checksums for the files above |',
+              '',
+              'No installation required: just run the single exe. Settings live in `LiteView.ini` (program folder first).'
+            ].join('\n');
+            const { data } = await github.rest.repos.generateReleaseNotes({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+            });
+            const body = [
+              '## ' + zhTitle,
+              '',
+              zhIntro,
+              '',
+              '## ' + enTitle,
+              '',
+              enIntro,
+              '',
+              '---',
+              '',
+              data.body,
+            ].join('\n');
+            core.exportVariable('RELEASE_BODY', body);
+            core.info('release notes composed (' + body.length + ' chars)');
+
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 0.0.2 Alpha
+          prerelease: true
+          body: ${{ env.RELEASE_BODY }}
+          files: |
+            LiteView-*.exe
+            SHA256SUMS.txt
+          fail_on_unmatched_files: true
